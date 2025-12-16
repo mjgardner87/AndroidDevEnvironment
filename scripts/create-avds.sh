@@ -52,7 +52,7 @@ fi
 echo "no" | avdmanager create avd \
     -n "$AVD_LATEST" \
     -k "system-images;android-35;google_apis_playstore;x86_64" \
-    -d "pixel_8_pro" \
+    -d "pixel_7_pro" \
     --force
 
 echo "✅ Android Latest emulator created"
