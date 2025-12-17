@@ -47,6 +47,18 @@ Terminal=false
 Categories=Development;
 EOF
 
+# 4. Android Test Console (SPA)
+cat > "$APPLICATIONS_DIR/android-test-console.desktop" << EOF
+[Desktop Entry]
+Type=Application
+Name=Android Test Console
+Comment=Slick console for emulator canvas + controls
+Exec=gnome-terminal -- /bin/bash -lc "$HOME/.local/bin/android-ui"
+Icon=applications-development
+Terminal=false
+Categories=Development;
+EOF
+
 # Update desktop database to ensure icons appear immediately
 if command -v update-desktop-database &> /dev/null; then
     update-desktop-database "$APPLICATIONS_DIR"

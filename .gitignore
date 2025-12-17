@@ -9,3 +9,6 @@ tmp/
 
 # Ignore local SDK if installed inside repo (though it defaults to ~/Android/Sdk)
 sdk/
+
+# UI dependencies (installed locally)
+node_modules/

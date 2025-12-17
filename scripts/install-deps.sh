@@ -15,7 +15,9 @@ sudo dnf install -y \
     libvirt \
     virt-manager \
     unzip \
-    curl
+    curl \
+    nodejs \
+    npm
 
 # Add user to libvirt group for KVM access
 echo ""

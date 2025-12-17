@@ -84,6 +84,13 @@ Update Android SDK and all installed packages
 ### `android-status`
 Show current environment status, installed packages, running emulators
 
+### `android-ui`
+Start the Android Test Console (local SPA) with:
+- Emulator/device screen rendered in the centre
+- Click-to-tap and drag-to-swipe input
+- Emulator controls and app install/launch actions
+- Live logcat panel
+
 ## Emulator Controls
 
 ### Mouse Interaction
@@ -186,6 +193,22 @@ Or just re-run `./setup.sh` (it updates automatically).
    ```
 
 6. **Verify on real device only after emulator testing passes**
+
+## Android Test Console (UI)
+
+The UI is a focused testing cockpit: the emulator canvas sits in the centre, with controls around it so you don’t bounce between windows.
+
+### Start the UI
+
+```bash
+android-ui
+```
+
+It will open a browser at `http://127.0.0.1:4242`.
+
+### Notes
+- The canvas uses `adb exec-out screencap -p`, so it’s not a perfect real-time stream, but it’s responsive enough for functional testing.
+- For lower latency, set Interval to ~150–250ms (CPU permitting).
 
 ### For Existing Apps
 
@@ -299,6 +322,7 @@ AndroidDevEnvironment/
 ├── config/                 # Configuration files
 │   └── avd/
 │       └── s24.ini         # Hardware config for S24
+├── ui/                     # Android Test Console (local SPA + server)
 └── scripts/                # Helper scripts
     ├── install-deps.sh     # System dependencies
     ├── install-sdk.sh      # SDK download and install

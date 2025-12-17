@@ -30,11 +30,16 @@ rm -f "$HOME/.local/bin/android-devices"
 rm -f "$HOME/.local/bin/android-s24"
 rm -f "$HOME/.local/bin/android-latest"
 rm -f "$HOME/.local/bin/android-status"
+rm -f "$HOME/.local/bin/android-ui"
 
 echo "Removing desktop shortcuts..."
 rm -f "$HOME/.local/share/applications/android-s24.desktop"
 rm -f "$HOME/.local/share/applications/android-latest.desktop"
 rm -f "$HOME/.local/share/applications/android-manager.desktop"
+rm -f "$HOME/.local/share/applications/android-test-console.desktop"
+
+echo "Removing UI files..."
+rm -rf "$HOME/.local/share/android-dev-ui"
 
 echo "✅ Cleanup complete."
 echo ""

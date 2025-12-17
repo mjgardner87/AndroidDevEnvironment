@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Android Test Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              panel: '#0b1220',
+              panel2: '#0f1a2e',
+              border: 'rgba(148, 163, 184, 0.15)'
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="dark bg-slate-950 text-slate-100">
+    <div class="h-screen w-screen overflow-hidden">
+      <div class="h-12 px-4 flex items-center justify-between border-b border-border bg-panel">
+        <div class="flex items-center gap-3">
+          <div class="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600"></div>
+          <div>
+            <div class="text-sm font-semibold leading-4">Android Test Console</div>
+            <div class="text-xs text-slate-400">Emulator canvas + controls</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="refresh" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Refresh</button>
+          <a class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs" href="/api/health" target="_blank" rel="noreferrer">Health</a>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-[320px_1fr_360px] h-[calc(100vh-3rem)]">
+        <!-- Left panel -->
+        <div class="border-r border-border bg-panel2 p-3 overflow-auto">
+          <div class="text-xs font-semibold text-slate-300">Target</div>
+
+          <div class="mt-2 space-y-2">
+            <label class="block text-xs text-slate-400">Device (adb serial)</label>
+            <div class="flex gap-2">
+              <select id="deviceSelect" class="flex-1 bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
+              <button id="pickRunningEmulator" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Pick</button>
+            </div>
+            <div id="deviceMeta" class="text-xs text-slate-400"></div>
+          </div>
+
+          <div class="mt-6 text-xs font-semibold text-slate-300">Emulators</div>
+          <div class="mt-2 space-y-2">
+            <label class="block text-xs text-slate-400">AVD</label>
+            <select id="avdSelect" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
+            <div class="flex gap-2">
+              <button id="startEmu" class="flex-1 px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-sm font-semibold">Start</button>
+              <button id="killEmu" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Kill</button>
+            </div>
+            <div class="flex gap-2">
+              <label class="flex items-center gap-2 text-xs text-slate-300"><input id="coldBoot" type="checkbox" class="accent-cyan-500" /> Cold</label>
+              <label class="flex items-center gap-2 text-xs text-slate-300"><input id="wipeData" type="checkbox" class="accent-cyan-500" /> Wipe</label>
+            </div>
+          </div>
+
+          <div class="mt-6 text-xs font-semibold text-slate-300">Device actions</div>
+          <div class="mt-2 grid grid-cols-2 gap-2">
+            <button id="rotatePortrait" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Portrait</button>
+            <button id="rotateLandscape" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Landscape</button>
+          </div>
+
+          <div class="mt-6 text-xs font-semibold text-slate-300">App</div>
+          <div class="mt-2 space-y-2">
+            <label class="block text-xs text-slate-400">APK path</label>
+            <input id="apkPath" placeholder="/home/you/app.apk" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+            <button id="installApk" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Install APK</button>
+
+            <label class="block text-xs text-slate-400">Package name</label>
+            <input id="pkgName" placeholder="com.example.app" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+            <div class="grid grid-cols-2 gap-2">
+              <button id="launchApp" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Launch</button>
+              <button id="clearApp" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Centre canvas -->
+        <div class="bg-slate-950 p-4 overflow-hidden">
+          <div class="h-full border border-border rounded-xl bg-black/30 flex flex-col">
+            <div class="h-10 px-3 flex items-center justify-between border-b border-border bg-panel">
+              <div class="flex items-center gap-3">
+                <div class="text-xs font-semibold text-slate-300">Canvas</div>
+                <div id="streamStatus" class="text-xs text-slate-400">Idle</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-slate-300 flex items-center gap-2">
+                  <span class="text-slate-400">Interval</span>
+                  <input id="intervalMs" type="number" value="250" min="100" max="2000" class="w-20 bg-slate-900 border border-border rounded-md px-2 py-1 text-xs" />
+                  <span class="text-slate-400">ms</span>
+                </label>
+                <button id="startStream" class="px-3 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold">Start</button>
+                <button id="stopStream" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Stop</button>
+              </div>
+            </div>
+
+            <div class="flex-1 relative overflow-hidden">
+              <div id="canvasHint" class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm p-6 text-center">
+                Start the stream to render the device screen here. Click to tap. Click-drag to swipe.
+              </div>
+              <img id="screen" class="w-full h-full object-contain select-none" draggable="false" />
+            </div>
+
+            <div class="h-10 px-3 border-t border-border bg-panel flex items-center justify-between">
+              <div class="text-xs text-slate-400">Interaction: <span class="text-slate-200">tap</span> / <span class="text-slate-200">swipe</span></div>
+              <div class="text-xs text-slate-400">Tip: keep Interval 150–350ms for usable latency.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right panel -->
+        <div class="border-l border-border bg-panel2 p-3 overflow-auto">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-semibold text-slate-300">Logcat</div>
+            <div class="flex gap-2">
+              <button id="startLog" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Start</button>
+              <button id="stopLog" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Stop</button>
+            </div>
+          </div>
+
+          <div class="mt-2 flex gap-2">
+            <input id="logFilter" placeholder="Filter (substring)" class="flex-1 bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+            <button id="clearLog" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Clear</button>
+          </div>
+
+          <pre id="log" class="mt-2 h-[calc(100%-5.5rem)] whitespace-pre-wrap break-words text-xs bg-slate-950/50 border border-border rounded-xl p-3 overflow-auto"></pre>
+        </div>
+      </div>
+
+      <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 hidden">
+        <div class="px-4 py-2 rounded-lg border border-border bg-slate-900 text-sm shadow-xl"></div>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
