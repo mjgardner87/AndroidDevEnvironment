@@ -32,7 +32,8 @@ if [ -d "$UI_SRC" ]; then
     echo "Installing Android Test Console UI to $UI_DEST..."
     rm -rf "$UI_DEST"
     mkdir -p "$UI_DEST"
-    cp -r "$UI_SRC/"* "$UI_DEST/"
+    # Copy UI sources without dragging along a local node_modules.
+    tar -C "$UI_SRC" --exclude node_modules -cf - . | tar -C "$UI_DEST" -xf -
     echo "✅ UI files copied"
 else
     echo ""
