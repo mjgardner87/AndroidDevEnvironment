@@ -100,6 +100,12 @@ function requireQuerySerial(url) {
   return { ok: true, serial };
 }
 
+function requireQueryParam(url, name) {
+  const value = url.searchParams.get(name);
+  if (!value) return { ok: false, error: `Missing ?${name}=` };
+  return { ok: true, value };
+}
+
 const server = createServer((req, res) => {
   try {
     if (!req.url) return text(res, 400, 'Bad request');
@@ -191,6 +197,28 @@ const server = createServer((req, res) => {
         return json(res, 200, { ok: true, output: r.stdout });
       }
 
+      if (url.pathname === '/api/app/deeplink' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+
+        const u = requireQueryParam(url, 'url');
+        if (!u.ok) return json(res, 400, u);
+
+        const r = adb([
+          '-s',
+          q.serial,
+          'shell',
+          'am',
+          'start',
+          '-a',
+          'android.intent.action.VIEW',
+          '-d',
+          u.value
+        ]);
+        if (!r.ok) return json(res, 500, { ok: false, error: r.stderr || r.stdout || 'Deep link failed' });
+        return json(res, 200, { ok: true, output: r.stdout });
+      }
+
       if (url.pathname === '/api/device/rotate' && req.method === 'POST') {
         const q = requireQuerySerial(url);
         if (!q.ok) return json(res, 400, q);
@@ -203,6 +231,128 @@ const server = createServer((req, res) => {
         if (!r1.ok || !r2.ok) {
           return json(res, 500, { ok: false, error: (r1.stderr || r2.stderr || 'Rotate failed').trim() });
         }
+        return json(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/device/wifi' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+        const enabled = url.searchParams.get('enabled');
+        if (enabled !== '1' && enabled !== '0') {
+          return json(res, 400, { ok: false, error: 'Missing ?enabled=1|0' });
+        }
+
+        const r = adb(['-s', q.serial, 'shell', 'svc', 'wifi', enabled === '1' ? 'enable' : 'disable']);
+        if (!r.ok) return json(res, 500, { ok: false, error: r.stderr || r.stdout || 'Wi‑Fi toggle failed' });
+        return json(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/device/data' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+        const enabled = url.searchParams.get('enabled');
+        if (enabled !== '1' && enabled !== '0') {
+          return json(res, 400, { ok: false, error: 'Missing ?enabled=1|0' });
+        }
+
+        const r = adb(['-s', q.serial, 'shell', 'svc', 'data', enabled === '1' ? 'enable' : 'disable']);
+        if (!r.ok) return json(res, 500, { ok: false, error: r.stderr || r.stdout || 'Mobile data toggle failed' });
+        return json(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/emulator/net' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+
+        const speed = url.searchParams.get('speed') ?? 'full';
+        const delay = url.searchParams.get('delay') ?? 'none';
+
+        const r1 = adb(['-s', q.serial, 'emu', 'network', 'speed', speed]);
+        const r2 = adb(['-s', q.serial, 'emu', 'network', 'delay', delay]);
+        if (!r1.ok || !r2.ok) {
+          return json(res, 500, { ok: false, error: (r1.stderr || r2.stderr || 'Network profile failed').trim() });
+        }
+        return json(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/device/geo' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+
+        const lat = Number(url.searchParams.get('lat'));
+        const lon = Number(url.searchParams.get('lon'));
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+          return json(res, 400, { ok: false, error: 'Missing ?lat=<number>&lon=<number>' });
+        }
+
+        // Emulator geo fix uses: geo fix <longitude> <latitude>
+        const r = adb(['-s', q.serial, 'emu', 'geo', 'fix', String(lon), String(lat)]);
+        if (!r.ok) return json(res, 500, { ok: false, error: r.stderr || r.stdout || 'Geo set failed' });
+        return json(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/device/battery' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+
+        const mode = url.searchParams.get('mode') ?? 'set';
+        if (mode === 'reset') {
+          const r = adb(['-s', q.serial, 'shell', 'dumpsys', 'battery', 'reset']);
+          if (!r.ok) return json(res, 500, { ok: false, error: r.stderr || r.stdout || 'Battery reset failed' });
+          return json(res, 200, { ok: true });
+        }
+
+        const level = Number(url.searchParams.get('level'));
+        if (!Number.isFinite(level) || level < 0 || level > 100) {
+          return json(res, 400, { ok: false, error: 'Missing ?level=0..100 (or ?mode=reset)' });
+        }
+
+        const charging = url.searchParams.get('charging') === '1';
+        const status = charging ? '2' : '3'; // 2=charging, 3=discharging
+
+        const r1 = adb(['-s', q.serial, 'shell', 'dumpsys', 'battery', 'set', 'level', String(Math.round(level))]);
+        const r2 = adb(['-s', q.serial, 'shell', 'dumpsys', 'battery', 'set', 'status', status]);
+        if (!r1.ok || !r2.ok) {
+          return json(res, 500, { ok: false, error: (r1.stderr || r2.stderr || 'Battery set failed').trim() });
+        }
+        return json(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/device/theme' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+
+        const mode = url.searchParams.get('mode') ?? 'dark';
+        const arg = mode === 'light' ? 'no' : 'yes';
+
+        const r = adb(['-s', q.serial, 'shell', 'cmd', 'uimode', 'night', arg]);
+        if (!r.ok) return json(res, 500, { ok: false, error: r.stderr || r.stdout || 'Theme set failed' });
+        return json(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/device/locale' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+
+        const loc = requireQueryParam(url, 'locale');
+        if (!loc.ok) return json(res, 400, loc);
+
+        const r = adb(['-s', q.serial, 'shell', 'cmd', 'locale', 'set', loc.value]);
+        if (!r.ok) return json(res, 500, { ok: false, error: r.stderr || r.stdout || 'Locale set failed' });
+        return json(res, 200, { ok: true });
+      }
+
+      if (url.pathname === '/api/device/font-scale' && req.method === 'POST') {
+        const q = requireQuerySerial(url);
+        if (!q.ok) return json(res, 400, q);
+
+        const scale = Number(url.searchParams.get('scale'));
+        if (!Number.isFinite(scale) || scale < 0.75 || scale > 2.0) {
+          return json(res, 400, { ok: false, error: 'Missing ?scale=0.75..2.0' });
+        }
+
+        const r = adb(['-s', q.serial, 'shell', 'settings', 'put', 'system', 'font_scale', String(scale)]);
+        if (!r.ok) return json(res, 500, { ok: false, error: r.stderr || r.stdout || 'Font scale failed' });
         return json(res, 200, { ok: true });
       }
 

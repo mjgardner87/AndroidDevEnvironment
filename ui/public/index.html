@@ -39,50 +39,163 @@
       <div class="grid grid-cols-[320px_1fr_360px] h-[calc(100vh-3rem)]">
         <!-- Left panel -->
         <div class="border-r border-border bg-panel2 p-3 overflow-auto">
-          <div class="text-xs font-semibold text-slate-300">Target</div>
-
-          <div class="mt-2 space-y-2">
-            <label class="block text-xs text-slate-400">Device (adb serial)</label>
-            <div class="flex gap-2">
-              <select id="deviceSelect" class="flex-1 bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
-              <button id="pickRunningEmulator" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Pick</button>
+          <details open class="rounded-xl border border-border bg-slate-950/30">
+            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Target</summary>
+            <div class="px-3 pb-3 space-y-2">
+              <label class="block text-xs text-slate-400">Device (adb serial)</label>
+              <div class="flex gap-2">
+                <select id="deviceSelect" class="flex-1 bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
+                <button id="pickRunningEmulator" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Pick</button>
+              </div>
+              <div id="deviceMeta" class="text-xs text-slate-400"></div>
             </div>
-            <div id="deviceMeta" class="text-xs text-slate-400"></div>
-          </div>
+          </details>
 
-          <div class="mt-6 text-xs font-semibold text-slate-300">Emulators</div>
-          <div class="mt-2 space-y-2">
-            <label class="block text-xs text-slate-400">AVD</label>
-            <select id="avdSelect" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
-            <div class="flex gap-2">
-              <button id="startEmu" class="flex-1 px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-sm font-semibold">Start</button>
-              <button id="killEmu" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Kill</button>
+          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
+            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Emulators</summary>
+            <div class="px-3 pb-3 space-y-2">
+              <label class="block text-xs text-slate-400">AVD</label>
+              <select id="avdSelect" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
+              <div class="flex gap-2">
+                <button id="startEmu" class="flex-1 px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-sm font-semibold">Start</button>
+                <button id="killEmu" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Kill</button>
+              </div>
+              <div class="flex gap-3">
+                <label class="flex items-center gap-2 text-xs text-slate-300"><input id="coldBoot" type="checkbox" class="accent-cyan-500" /> Cold</label>
+                <label class="flex items-center gap-2 text-xs text-slate-300"><input id="wipeData" type="checkbox" class="accent-cyan-500" /> Wipe</label>
+              </div>
             </div>
-            <div class="flex gap-2">
-              <label class="flex items-center gap-2 text-xs text-slate-300"><input id="coldBoot" type="checkbox" class="accent-cyan-500" /> Cold</label>
-              <label class="flex items-center gap-2 text-xs text-slate-300"><input id="wipeData" type="checkbox" class="accent-cyan-500" /> Wipe</label>
+          </details>
+
+          <details class="mt-3 rounded-xl border border-border bg-slate-950/30">
+            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">App profiles</summary>
+            <div class="px-3 pb-3 space-y-2">
+              <label class="block text-xs text-slate-400">Profile</label>
+              <select id="profileSelect" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
+
+              <label class="block text-xs text-slate-400">Profile name</label>
+              <input id="profileName" placeholder="BreathingApp (debug)" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+
+              <div class="grid grid-cols-2 gap-2">
+                <button id="profileSave" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Save</button>
+                <button id="profileNew" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">New</button>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <button id="profileDelete" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Delete</button>
+                <button id="profileExport" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Export</button>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400">Import (JSON)</label>
+                <input id="profileImport" type="file" accept="application/json" class="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700" />
+              </div>
             </div>
-          </div>
+          </details>
 
-          <div class="mt-6 text-xs font-semibold text-slate-300">Device actions</div>
-          <div class="mt-2 grid grid-cols-2 gap-2">
-            <button id="rotatePortrait" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Portrait</button>
-            <button id="rotateLandscape" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Landscape</button>
-          </div>
+          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
+            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">App</summary>
+            <div class="px-3 pb-3 space-y-2">
+              <label class="block text-xs text-slate-400">APK path</label>
+              <input id="apkPath" placeholder="/home/you/app.apk" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+              <button id="installApk" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Install APK</button>
 
-          <div class="mt-6 text-xs font-semibold text-slate-300">App</div>
-          <div class="mt-2 space-y-2">
-            <label class="block text-xs text-slate-400">APK path</label>
-            <input id="apkPath" placeholder="/home/you/app.apk" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-            <button id="installApk" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Install APK</button>
+              <label class="block text-xs text-slate-400">Package name</label>
+              <input id="pkgName" placeholder="com.example.app" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+              <div class="grid grid-cols-2 gap-2">
+                <button id="launchApp" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Launch</button>
+                <button id="clearApp" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Clear</button>
+              </div>
 
-            <label class="block text-xs text-slate-400">Package name</label>
-            <input id="pkgName" placeholder="com.example.app" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-            <div class="grid grid-cols-2 gap-2">
-              <button id="launchApp" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Launch</button>
-              <button id="clearApp" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Clear</button>
+              <label class="block text-xs text-slate-400">Deep link URL</label>
+              <input id="deeplinkUrl" placeholder="myapp://route/xyz" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+              <button id="openDeeplink" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Open deep link</button>
             </div>
-          </div>
+          </details>
+
+          <details class="mt-3 rounded-xl border border-border bg-slate-950/30">
+            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Conditions</summary>
+            <div class="px-3 pb-3 space-y-3">
+              <div>
+                <div class="text-xs font-semibold text-slate-300">Connectivity</div>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                  <button id="wifiOn" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Wi‑Fi on</button>
+                  <button id="wifiOff" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Wi‑Fi off</button>
+                  <button id="dataOn" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Data on</button>
+                  <button id="dataOff" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Data off</button>
+                </div>
+              </div>
+
+              <div>
+                <div class="text-xs font-semibold text-slate-300">Emulator network</div>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                  <select id="netSpeed" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs">
+                    <option value="full">Speed: full</option>
+                    <option value="lte">Speed: lte</option>
+                    <option value="hspa">Speed: hspa</option>
+                    <option value="umts">Speed: umts</option>
+                    <option value="edge">Speed: edge</option>
+                    <option value="gsm">Speed: gsm</option>
+                    <option value="none">Speed: none</option>
+                  </select>
+                  <select id="netDelay" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs">
+                    <option value="none">Delay: none</option>
+                    <option value="lte">Delay: lte</option>
+                    <option value="umts">Delay: umts</option>
+                    <option value="edge">Delay: edge</option>
+                    <option value="gprs">Delay: gprs</option>
+                  </select>
+                </div>
+                <button id="applyNet" class="mt-2 w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Apply network profile</button>
+              </div>
+
+              <div>
+                <div class="text-xs font-semibold text-slate-300">Location (emulator)</div>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                  <input id="geoLat" placeholder="lat" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs" />
+                  <input id="geoLon" placeholder="lon" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs" />
+                </div>
+                <button id="applyGeo" class="mt-2 w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Set location</button>
+              </div>
+
+              <div>
+                <div class="text-xs font-semibold text-slate-300">Battery</div>
+                <div class="mt-2 flex items-center gap-2">
+                  <input id="batteryLevel" type="range" min="0" max="100" value="80" class="flex-1 accent-cyan-500" />
+                  <div id="batteryLabel" class="w-12 text-right text-xs text-slate-300">80%</div>
+                </div>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                  <button id="batteryCharging" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Charging</button>
+                  <button id="batteryDischarging" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Discharging</button>
+                </div>
+                <button id="batteryReset" class="mt-2 w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Reset battery</button>
+              </div>
+
+              <div>
+                <div class="text-xs font-semibold text-slate-300">Display</div>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                  <button id="themeDark" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Dark</button>
+                  <button id="themeLight" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Light</button>
+                </div>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                  <select id="locale" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs">
+                    <option value="en-AU">Locale: en-AU</option>
+                    <option value="en-US">Locale: en-US</option>
+                    <option value="de-DE">Locale: de-DE</option>
+                    <option value="ja-JP">Locale: ja-JP</option>
+                  </select>
+                  <input id="fontScale" type="number" min="0.75" max="2" step="0.05" value="1.0" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs" />
+                </div>
+                <button id="applyDisplay" class="mt-2 w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Apply display</button>
+              </div>
+
+              <div>
+                <div class="text-xs font-semibold text-slate-300">Device actions</div>
+                <div class="mt-2 grid grid-cols-2 gap-2">
+                  <button id="rotatePortrait" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Portrait</button>
+                  <button id="rotateLandscape" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Landscape</button>
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
 
         <!-- Centre canvas -->

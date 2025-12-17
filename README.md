@@ -90,6 +90,8 @@ Start the Android Test Console (local SPA) with:
 - Click-to-tap and drag-to-swipe input
 - Emulator controls and app install/launch actions
 - Live logcat panel
+- Saved app profiles (APK path, package name, deep link)
+- Conditions panel (Wi‑Fi/Data toggles, emulator network shaping, geo, battery, theme/locale/font)
 
 ## Emulator Controls
 
@@ -209,6 +211,7 @@ It will open a browser at `http://127.0.0.1:4242`.
 ### Notes
 - The canvas uses `adb exec-out screencap -p`, so it’s not a perfect real-time stream, but it’s responsive enough for functional testing.
 - For lower latency, set Interval to ~150–250ms (CPU permitting).
+- App profiles are stored locally in your browser (localStorage). Use Export/Import to move them between machines.
 
 ### For Existing Apps
 

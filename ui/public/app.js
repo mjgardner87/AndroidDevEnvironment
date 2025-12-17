@@ -14,11 +14,47 @@ const wipeData = qs('wipeData');
 const rotatePortrait = qs('rotatePortrait');
 const rotateLandscape = qs('rotateLandscape');
 
+const profileSelect = qs('profileSelect');
+const profileName = qs('profileName');
+const profileSave = qs('profileSave');
+const profileNew = qs('profileNew');
+const profileDelete = qs('profileDelete');
+const profileExport = qs('profileExport');
+const profileImport = qs('profileImport');
+
 const apkPath = qs('apkPath');
 const installApk = qs('installApk');
 const pkgName = qs('pkgName');
 const launchApp = qs('launchApp');
 const clearApp = qs('clearApp');
+const deeplinkUrl = qs('deeplinkUrl');
+const openDeeplink = qs('openDeeplink');
+
+const wifiOn = qs('wifiOn');
+const wifiOff = qs('wifiOff');
+const dataOn = qs('dataOn');
+const dataOff = qs('dataOff');
+
+const netSpeed = qs('netSpeed');
+const netDelay = qs('netDelay');
+const applyNet = qs('applyNet');
+
+const geoLat = qs('geoLat');
+const geoLon = qs('geoLon');
+const applyGeo = qs('applyGeo');
+
+const batteryLevel = qs('batteryLevel');
+const batteryLabel = qs('batteryLabel');
+const batteryCharging = qs('batteryCharging');
+const batteryDischarging = qs('batteryDischarging');
+const batteryReset = qs('batteryReset');
+let batteryIsCharging = false;
+
+const themeDark = qs('themeDark');
+const themeLight = qs('themeLight');
+const locale = qs('locale');
+const fontScale = qs('fontScale');
+const applyDisplay = qs('applyDisplay');
 
 const intervalMs = qs('intervalMs');
 const startStream = qs('startStream');
@@ -40,6 +76,8 @@ let logWs = null;
 let screenWs = null;
 let lastObjectUrl = null;
 
+const STORAGE_KEY = 'android-dev-ui:profiles:v1';
+
 function showToast(msg) {
   toastInner.textContent = msg;
   toast.classList.remove('hidden');
@@ -50,6 +88,66 @@ function showToast(msg) {
 async function api(path, opts = {}) {
   const res = await fetch(path, opts);
   return await res.json();
+}
+
+function newId() {
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function loadProfiles() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((p) => p && typeof p === 'object' && typeof p.id === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function saveProfiles(profiles) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+}
+
+function currentProfileId() {
+  return profileSelect?.value || '';
+}
+
+function renderProfiles(profiles) {
+  if (!profileSelect) return;
+  const cur = currentProfileId();
+  profileSelect.innerHTML = '';
+
+  const empty = document.createElement('option');
+  empty.value = '';
+  empty.textContent = '— Select profile —';
+  profileSelect.appendChild(empty);
+
+  for (const p of profiles) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name || '(unnamed)';
+    profileSelect.appendChild(opt);
+  }
+
+  if (profiles.some((p) => p.id === cur)) profileSelect.value = cur;
+}
+
+function applyProfile(p) {
+  if (!p) return;
+  profileName.value = p.name ?? '';
+  apkPath.value = p.apkPath ?? '';
+  pkgName.value = p.pkgName ?? '';
+  deeplinkUrl.value = (p.deeplinks?.[0] ?? '') || '';
+}
+
+function snapshotProfileForm() {
+  return {
+    name: profileName.value.trim(),
+    apkPath: apkPath.value.trim(),
+    pkgName: pkgName.value.trim(),
+    deeplinks: deeplinkUrl.value.trim() ? [deeplinkUrl.value.trim()] : []
+  };
 }
 
 function selectedSerial() {
@@ -118,6 +216,90 @@ async function refreshAll() {
 }
 
 refreshBtn.addEventListener('click', refreshAll);
+
+profileSelect?.addEventListener('change', () => {
+  const profiles = loadProfiles();
+  const id = currentProfileId();
+  const p = profiles.find((x) => x.id === id);
+  if (!p) return;
+  applyProfile(p);
+  showToast(`Loaded profile: ${p.name || '(unnamed)'}`);
+});
+
+profileNew?.addEventListener('click', () => {
+  profileSelect.value = '';
+  profileName.value = '';
+  apkPath.value = '';
+  pkgName.value = '';
+  deeplinkUrl.value = '';
+  showToast('New profile');
+});
+
+profileSave?.addEventListener('click', () => {
+  const form = snapshotProfileForm();
+  if (!form.name) return showToast('Give the profile a name');
+
+  const profiles = loadProfiles();
+  const id = currentProfileId();
+  const existingIdx = profiles.findIndex((p) => p.id === id);
+
+  if (existingIdx >= 0) {
+    profiles[existingIdx] = { ...profiles[existingIdx], ...form };
+    saveProfiles(profiles);
+    renderProfiles(profiles);
+    showToast('Profile saved');
+    return;
+  }
+
+  const next = { id: newId(), ...form };
+  profiles.unshift(next);
+  saveProfiles(profiles);
+  renderProfiles(profiles);
+  profileSelect.value = next.id;
+  showToast('Profile created');
+});
+
+profileDelete?.addEventListener('click', () => {
+  const id = currentProfileId();
+  if (!id) return showToast('Select a profile first');
+  const profiles = loadProfiles().filter((p) => p.id !== id);
+  saveProfiles(profiles);
+  renderProfiles(profiles);
+  profileSelect.value = '';
+  showToast('Profile deleted');
+});
+
+profileExport?.addEventListener('click', () => {
+  const profiles = loadProfiles();
+  const blob = new Blob([JSON.stringify(profiles, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'android-test-console-profiles.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported profiles');
+});
+
+profileImport?.addEventListener('change', async () => {
+  const file = profileImport.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) throw new Error('Invalid JSON format');
+    const incoming = parsed
+      .filter((p) => p && typeof p === 'object')
+      .map((p) => ({ id: typeof p.id === 'string' ? p.id : newId(), ...p }));
+    saveProfiles(incoming);
+    renderProfiles(incoming);
+    showToast('Imported profiles');
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : 'Import failed');
+  } finally {
+    profileImport.value = '';
+  }
+});
 
 pickRunningEmulator.addEventListener('click', async () => {
   const devices = await api('/api/devices');
@@ -217,6 +399,145 @@ clearApp.addEventListener('click', async () => {
   });
   if (!r.ok) return showToast(r.error || 'Clear failed');
   showToast('Cleared');
+});
+
+openDeeplink.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const url = deeplinkUrl.value.trim();
+  if (!url) return showToast('Enter a deep link URL');
+  const r = await api(`/api/app/deeplink?serial=${encodeURIComponent(serial)}&url=${encodeURIComponent(url)}`, {
+    method: 'POST'
+  });
+  if (!r.ok) return showToast(r.error || 'Deep link failed');
+  showToast('Opened');
+});
+
+wifiOn.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(`/api/device/wifi?serial=${encodeURIComponent(serial)}&enabled=1`, { method: 'POST' });
+  if (!r.ok) return showToast(r.error || 'Wi‑Fi on failed');
+  showToast('Wi‑Fi on');
+});
+
+wifiOff.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(`/api/device/wifi?serial=${encodeURIComponent(serial)}&enabled=0`, { method: 'POST' });
+  if (!r.ok) return showToast(r.error || 'Wi‑Fi off failed');
+  showToast('Wi‑Fi off');
+});
+
+dataOn.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(`/api/device/data?serial=${encodeURIComponent(serial)}&enabled=1`, { method: 'POST' });
+  if (!r.ok) return showToast(r.error || 'Data on failed');
+  showToast('Data on');
+});
+
+dataOff.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(`/api/device/data?serial=${encodeURIComponent(serial)}&enabled=0`, { method: 'POST' });
+  if (!r.ok) return showToast(r.error || 'Data off failed');
+  showToast('Data off');
+});
+
+applyNet.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const speed = netSpeed.value;
+  const delay = netDelay.value;
+  const r = await api(
+    `/api/emulator/net?serial=${encodeURIComponent(serial)}&speed=${encodeURIComponent(speed)}&delay=${encodeURIComponent(delay)}`,
+    { method: 'POST' }
+  );
+  if (!r.ok) return showToast(r.error || 'Network profile failed');
+  showToast('Network applied');
+});
+
+applyGeo.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const lat = Number(geoLat.value);
+  const lon = Number(geoLon.value);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return showToast('Enter lat/lon');
+  const r = await api(`/api/device/geo?serial=${encodeURIComponent(serial)}&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`, {
+    method: 'POST'
+  });
+  if (!r.ok) return showToast(r.error || 'Location failed');
+  showToast('Location set');
+});
+
+function syncBatteryLabel() {
+  batteryLabel.textContent = `${batteryLevel.value}%`;
+}
+syncBatteryLabel();
+batteryLevel.addEventListener('input', syncBatteryLabel);
+
+async function applyBattery() {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const lvl = Number(batteryLevel.value);
+  const charging = batteryIsCharging ? 1 : 0;
+  const r = await api(
+    `/api/device/battery?serial=${encodeURIComponent(serial)}&level=${encodeURIComponent(lvl)}&charging=${charging}`,
+    { method: 'POST' }
+  );
+  if (!r.ok) return showToast(r.error || 'Battery failed');
+  showToast('Battery set');
+}
+
+batteryCharging.addEventListener('click', () => {
+  batteryIsCharging = true;
+  showToast('Charging mode');
+  applyBattery();
+});
+
+batteryDischarging.addEventListener('click', () => {
+  batteryIsCharging = false;
+  showToast('Discharging mode');
+  applyBattery();
+});
+
+batteryReset.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(`/api/device/battery?serial=${encodeURIComponent(serial)}&mode=reset`, { method: 'POST' });
+  if (!r.ok) return showToast(r.error || 'Battery reset failed');
+  showToast('Battery reset');
+});
+
+themeDark.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(`/api/device/theme?serial=${encodeURIComponent(serial)}&mode=dark`, { method: 'POST' });
+  if (!r.ok) return showToast(r.error || 'Theme failed');
+  showToast('Dark mode');
+});
+
+themeLight.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(`/api/device/theme?serial=${encodeURIComponent(serial)}&mode=light`, { method: 'POST' });
+  if (!r.ok) return showToast(r.error || 'Theme failed');
+  showToast('Light mode');
+});
+
+applyDisplay.addEventListener('click', async () => {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const loc = locale.value;
+  const scale = Number(fontScale.value);
+  if (!Number.isFinite(scale)) return showToast('Enter a font scale');
+
+  const r1 = await api(`/api/device/locale?serial=${encodeURIComponent(serial)}&locale=${encodeURIComponent(loc)}`, { method: 'POST' });
+  if (!r1.ok) return showToast(r1.error || 'Locale failed');
+  const r2 = await api(`/api/device/font-scale?serial=${encodeURIComponent(serial)}&scale=${encodeURIComponent(scale)}`, { method: 'POST' });
+  if (!r2.ok) return showToast(r2.error || 'Font scale failed');
+  showToast('Display applied');
 });
 
 function clearLogView() {
@@ -405,4 +726,8 @@ window.addEventListener('beforeunload', () => {
   stopLog.click();
 });
 
+renderProfiles(loadProfiles());
 refreshAll();
+
+// Keep the target list current without manual refresh.
+window.setInterval(refreshAll, 3000);
