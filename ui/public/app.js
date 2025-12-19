@@ -62,6 +62,33 @@ const stopStream = qs('stopStream');
 const streamStatus = qs('streamStatus');
 const canvasHint = qs('canvasHint');
 const screenImg = qs('screen');
+const runningDevicesEl = qs('runningDevices');
+const navBack = qs('navBack');
+const navHome = qs('navHome');
+const navOverview = qs('navOverview');
+const navVolDown = qs('navVolDown');
+const navVolUp = qs('navVolUp');
+const navPower = qs('navPower');
+const controlRotatePortrait = qs('controlRotatePortrait');
+const controlRotateLandscape = qs('controlRotateLandscape');
+
+const projectRootInput = qs('projectRootInput');
+const projectBuildCommand = qs('projectBuildCommand');
+const projectApkDir = qs('projectApkDir');
+const projectPackageName = qs('projectPackageName');
+const projectAutoLaunch = qs('projectAutoLaunch');
+const projectSave = qs('projectSave');
+
+const buildStatusEl = qs('buildStatus');
+const buildRunBtn = qs('buildRun');
+const buildInstallBtn = qs('buildInstall');
+const installLatestBtn = qs('installLatest');
+const refreshArtifactsBtn = qs('refreshArtifacts');
+const artifactListEl = qs('artifactList');
+
+const buildLogPre = qs('buildLog');
+const buildLogFollowBtn = qs('buildLogFollow');
+const buildLogClearBtn = qs('buildLogClear');
 
 const startLog = qs('startLog');
 const stopLog = qs('stopLog');
@@ -75,8 +102,76 @@ const toastInner = toast.querySelector('div');
 let logWs = null;
 let screenWs = null;
 let lastObjectUrl = null;
+let buildLogWs = null;
+let buildLogFollowEnabled = true;
+let buildStatusTimer = null;
+let lastBuildStatus = 'idle';
+let pendingAutoInstall = false;
+let pendingAutoLaunch = false;
+let cachedArtifacts = [];
+let projectConfig = null;
 
 const STORAGE_KEY = 'android-dev-ui:profiles:v1';
+const PROJECT_DEFAULT = {
+  projectRoot: '/home/squigz/Documents/BreathingApp',
+  buildCommand: 'cd android && ./gradlew assembleDebug',
+  apkDir: 'android/app/build/outputs/apk/debug',
+  packageName: 'com.breathingapp',
+  autoLaunch: true
+};
+
+function applyProjectForm(config) {
+  projectConfig = { ...PROJECT_DEFAULT, ...(config || {}) };
+  if (projectRootInput) projectRootInput.value = projectConfig.projectRoot ?? '';
+  if (projectBuildCommand) projectBuildCommand.value = projectConfig.buildCommand ?? '';
+  if (projectApkDir) projectApkDir.value = projectConfig.apkDir ?? '';
+  if (projectPackageName) projectPackageName.value = projectConfig.packageName ?? '';
+  if (projectAutoLaunch) projectAutoLaunch.checked = Boolean(projectConfig.autoLaunch);
+}
+
+function snapshotProjectForm() {
+  return {
+    projectRoot: projectRootInput?.value.trim() ?? '',
+    buildCommand: projectBuildCommand?.value.trim() ?? '',
+    apkDir: projectApkDir?.value.trim() ?? '',
+    packageName: projectPackageName?.value.trim() ?? '',
+    autoLaunch: Boolean(projectAutoLaunch?.checked)
+  };
+}
+
+async function fetchProjectConfig() {
+  try {
+    const res = await api('/api/project');
+    if (res.ok && res.project) {
+      applyProjectForm(res.project);
+    }
+  } catch {
+    // ignore fetch errors
+  }
+}
+
+async function saveProjectToServer() {
+  const payload = snapshotProjectForm();
+  try {
+    const res = await fetch('/api/project', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then((r) => r.json());
+    if (!res.ok) {
+      showToast(res.error || 'Failed to save project');
+      return;
+    }
+    applyProjectForm(res.project);
+    showToast('Project saved');
+  } catch {
+    showToast('Failed to save project');
+  }
+}
+
+function currentPackageName() {
+  return projectPackageName?.value.trim() || projectConfig?.packageName || '';
+}
 
 function showToast(msg) {
   toastInner.textContent = msg;
@@ -164,6 +259,7 @@ function setDevices(devices) {
     opt.textContent = 'No devices detected';
     deviceSelect.appendChild(opt);
     deviceMeta.textContent = '';
+    renderRunningDevices([]);
     return;
   }
 
@@ -176,6 +272,7 @@ function setDevices(devices) {
 
   if (devices.some((d) => d.serial === current)) deviceSelect.value = current;
   updateDeviceMeta(devices);
+  renderRunningDevices(devices);
 }
 
 function updateDeviceMeta(devices) {
@@ -186,6 +283,248 @@ function updateDeviceMeta(devices) {
     return;
   }
   deviceMeta.textContent = d.extras ? d.extras : '';
+}
+
+function updateBuildStatusLabel(statusText, extra) {
+  if (!buildStatusEl) return;
+  buildStatusEl.textContent = statusText ?? 'Idle';
+  buildStatusEl.classList.remove('text-cyan-400', 'text-yellow-400', 'text-red-400', 'text-slate-100');
+  if (statusText === 'running') buildStatusEl.classList.add('text-cyan-400');
+  else if (statusText === 'failed') buildStatusEl.classList.add('text-red-400');
+  else if (statusText === 'success') buildStatusEl.classList.add('text-cyan-400');
+  else if (statusText === 'cancelled') buildStatusEl.classList.add('text-yellow-400');
+  else buildStatusEl.classList.add('text-slate-100');
+  if (extra?.error && statusText === 'failed') {
+    buildStatusEl.title = extra.error;
+  } else {
+    buildStatusEl.removeAttribute('title');
+  }
+}
+
+async function refreshBuildStatus() {
+  try {
+    const res = await api('/api/build/status');
+    if (!res.ok) return;
+    const status = res.status?.status ?? 'idle';
+    updateBuildStatusLabel(status, res.status);
+    if (status !== lastBuildStatus && lastBuildStatus === 'running') {
+      if (status === 'success' && pendingAutoInstall) {
+        pendingAutoInstall = false;
+        await installLatestArtifact({ launch: pendingAutoLaunch && Boolean(currentPackageName()) });
+      } else {
+        pendingAutoInstall = false;
+        pendingAutoLaunch = false;
+      }
+    }
+    lastBuildStatus = status;
+  } catch {
+    // ignore
+  }
+}
+
+function ensureBuildStatusPolling() {
+  if (!buildStatusTimer) {
+    buildStatusTimer = window.setInterval(refreshBuildStatus, 2000);
+  }
+}
+
+function appendBuildLog(text) {
+  if (!buildLogPre || !text) return;
+  buildLogPre.textContent += text;
+  if (buildLogFollowEnabled) {
+    buildLogPre.scrollTop = buildLogPre.scrollHeight;
+  }
+}
+
+function openBuildLogStream() {
+  if (buildLogWs || !buildLogPre) return;
+  buildLogWs = new WebSocket(`ws://${location.host}/ws/build-log`);
+  buildLogWs.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === 'log') appendBuildLog(msg.text);
+      if (msg.type === 'state') updateBuildStatusLabel(msg.status);
+    } catch {
+      // ignore
+    }
+  };
+  buildLogWs.onclose = () => {
+    buildLogWs = null;
+    setTimeout(openBuildLogStream, 1200);
+  };
+}
+
+function renderRunningDevices(devices) {
+  if (!runningDevicesEl) return;
+  runningDevicesEl.innerHTML = '';
+
+  if (!devices.length) {
+    const empty = document.createElement('div');
+    empty.className = 'text-slate-500';
+    empty.textContent = 'No running emulators detected.';
+    runningDevicesEl.appendChild(empty);
+    return;
+  }
+
+  for (const device of devices) {
+    const card = document.createElement('div');
+    card.className = 'rounded-xl border border-border bg-slate-900/40 p-3 space-y-1';
+
+    const title = document.createElement('div');
+    title.className = 'text-xs font-semibold text-slate-200';
+    title.textContent = device.serial;
+    card.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'text-[11px] text-slate-400';
+    meta.textContent = device.extras || device.state;
+    card.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'flex gap-2 pt-1';
+
+    const selectBtn = document.createElement('button');
+    selectBtn.className = 'flex-1 px-2 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-[11px]';
+    selectBtn.textContent = 'Select';
+    selectBtn.addEventListener('click', () => {
+      deviceSelect.value = device.serial;
+      updateDeviceMeta(devices);
+      showToast(`Selected ${device.serial}`);
+    });
+
+    const killBtn = document.createElement('button');
+    killBtn.className = 'px-2 py-1.5 rounded-md bg-red-900/70 hover:bg-red-800 text-[11px]';
+    killBtn.textContent = 'Kill';
+    killBtn.addEventListener('click', async () => {
+      const resp = await api(
+        `/api/emulator/kill?serial=${encodeURIComponent(device.serial)}`,
+        { method: 'POST' }
+      );
+      if (!resp.ok) {
+        showToast(resp.error || 'Failed to kill emulator');
+        return;
+      }
+      showToast(`Kill requested for ${device.serial}`);
+      window.setTimeout(refreshAll, 800);
+    });
+
+    actions.appendChild(selectBtn);
+    actions.appendChild(killBtn);
+    card.appendChild(actions);
+
+    runningDevicesEl.appendChild(card);
+  }
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderArtifactList(artifacts) {
+  if (!artifactListEl) return;
+  artifactListEl.innerHTML = '';
+  if (!artifacts.length) {
+    const empty = document.createElement('div');
+    empty.className = 'text-slate-500';
+    empty.textContent = 'No builds detected.';
+    artifactListEl.appendChild(empty);
+    return;
+  }
+
+  for (const artifact of artifacts) {
+    const row = document.createElement('div');
+    row.className = 'rounded-lg border border-border bg-slate-900/40 p-2 flex items-center justify-between gap-2';
+
+    const info = document.createElement('div');
+    info.className = 'text-[11px] text-slate-300 flex-1';
+    const date = artifact.mtimeMs ? new Date(artifact.mtimeMs).toLocaleString() : '';
+    info.innerHTML = `<div class="font-semibold text-slate-100">${artifact.name}</div><div class="text-slate-400">${date} · ${formatBytes(artifact.size)}</div>`;
+
+    const installBtn = document.createElement('button');
+    installBtn.className = 'px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold';
+    installBtn.textContent = 'Install';
+    installBtn.addEventListener('click', () => {
+      installArtifact(artifact.name, { launch: projectAutoLaunch?.checked });
+    });
+
+    row.appendChild(info);
+    row.appendChild(installBtn);
+    artifactListEl.appendChild(row);
+  }
+}
+
+async function refreshArtifactsList() {
+  try {
+    const res = await api('/api/build/artifacts');
+    if (!res.ok) {
+      showToast(res.error || 'Failed to list artifacts');
+      return [];
+    }
+    cachedArtifacts = res.artifacts ?? [];
+    renderArtifactList(cachedArtifacts);
+    return cachedArtifacts;
+  } catch {
+    showToast('Failed to list artifacts');
+    return [];
+  }
+}
+
+async function installArtifact(artifactName, opts = {}) {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  if (!artifactName) return showToast('No artifact selected');
+
+  showToast('Installing APK…');
+  const r = await api(
+    `/api/app/install?serial=${encodeURIComponent(serial)}&artifact=${encodeURIComponent(artifactName)}`,
+    { method: 'POST' }
+  );
+  if (!r.ok) return showToast(r.error || 'Install failed');
+  showToast('Install complete');
+
+  if (opts.launch && currentPackageName()) {
+    const launchRes = await api(
+      `/api/app/launch?serial=${encodeURIComponent(serial)}&pkg=${encodeURIComponent(currentPackageName())}`,
+      { method: 'POST' }
+    );
+    if (!launchRes.ok) return showToast(launchRes.error || 'Launch failed');
+    showToast('Launched');
+  }
+}
+
+async function installLatestArtifact(opts = {}) {
+  const artifacts = cachedArtifacts.length ? cachedArtifacts : await refreshArtifactsList();
+  if (!artifacts.length) return showToast('No APKs available');
+  await installArtifact(artifacts[0].name, opts);
+  pendingAutoLaunch = false;
+}
+
+async function startBuild(autoInstall) {
+  const form = snapshotProjectForm();
+  if (!form.projectRoot || !form.buildCommand) {
+    return showToast('Set project root and build command first');
+  }
+  pendingAutoInstall = Boolean(autoInstall);
+  pendingAutoLaunch = Boolean(autoInstall && form.autoLaunch && currentPackageName());
+  try {
+    const res = await api('/api/build/start', { method: 'POST' });
+    if (!res.ok) {
+      pendingAutoInstall = false;
+      return showToast(res.error || 'Build failed to start');
+    }
+    showToast(autoInstall ? 'Build & install started' : 'Build started');
+    lastBuildStatus = 'running';
+    updateBuildStatusLabel('running');
+    openBuildLogStream();
+    ensureBuildStatusPolling();
+    await refreshBuildStatus();
+  } catch {
+    pendingAutoInstall = false;
+    showToast('Build failed to start');
+  }
 }
 
 function setAvds(avds) {
@@ -299,6 +638,36 @@ profileImport?.addEventListener('change', async () => {
   } finally {
     profileImport.value = '';
   }
+});
+
+projectSave?.addEventListener('click', saveProjectToServer);
+projectAutoLaunch?.addEventListener('change', () => {
+  if (!projectConfig) return;
+  projectConfig.autoLaunch = Boolean(projectAutoLaunch?.checked);
+});
+
+buildRunBtn?.addEventListener('click', () => startBuild(false));
+buildInstallBtn?.addEventListener('click', () => startBuild(true));
+installLatestBtn?.addEventListener('click', () => installLatestArtifact({ launch: projectAutoLaunch?.checked }));
+refreshArtifactsBtn?.addEventListener('click', refreshArtifactsList);
+
+buildLogClearBtn?.addEventListener('click', () => {
+  if (buildLogPre) buildLogPre.textContent = '';
+});
+
+function updateBuildLogFollowButton() {
+  if (!buildLogFollowBtn) return;
+  buildLogFollowBtn.textContent = buildLogFollowEnabled ? 'Follow: on' : 'Follow: off';
+}
+updateBuildLogFollowButton();
+
+buildLogFollowBtn?.addEventListener('click', () => {
+  buildLogFollowEnabled = !buildLogFollowEnabled;
+  updateBuildLogFollowButton();
+  if (buildLogFollowEnabled && buildLogPre) {
+    buildLogPre.scrollTop = buildLogPre.scrollHeight;
+  }
+  if (!buildLogWs) openBuildLogStream();
 });
 
 pickRunningEmulator.addEventListener('click', async () => {
@@ -600,7 +969,7 @@ startStream.addEventListener('click', () => {
 
   stopScreenStream();
 
-  const ms = Math.max(100, Math.min(2000, Number(intervalMs.value || 250)));
+  const ms = Math.max(80, Math.min(2000, Number(intervalMs.value || 180)));
 
   setStreamState('Connecting…');
   screenWs = new WebSocket(
@@ -642,6 +1011,51 @@ startStream.addEventListener('click', () => {
     screenImg.src = lastObjectUrl;
   };
 });
+
+async function sendKeyAction(action, label) {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(
+    `/api/device/keyevent?serial=${encodeURIComponent(serial)}&action=${encodeURIComponent(action)}`,
+    {
+      method: 'POST'
+    }
+  );
+  if (!r.ok) return showToast(r.error || 'Key event failed');
+  showToast(label);
+}
+
+[
+  [navBack, 'back', 'Back'],
+  [navHome, 'home', 'Home'],
+  [navOverview, 'overview', 'Overview'],
+  [navVolDown, 'vol_down', 'Volume down'],
+  [navVolUp, 'vol_up', 'Volume up'],
+  [navPower, 'power', 'Power']
+].forEach(([btn, action, label]) => {
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    sendKeyAction(action, label);
+  });
+});
+
+async function rotateDevice(mode, label) {
+  const serial = selectedSerial();
+  if (!serial) return showToast('Pick a device first');
+  const r = await api(
+    `/api/device/rotate?serial=${encodeURIComponent(serial)}&mode=${encodeURIComponent(mode)}`,
+    { method: 'POST' }
+  );
+  if (!r.ok) return showToast(r.error || 'Rotate failed');
+  showToast(label);
+}
+
+if (controlRotatePortrait) {
+  controlRotatePortrait.addEventListener('click', () => rotateDevice('portrait', 'Portrait'));
+}
+if (controlRotateLandscape) {
+  controlRotateLandscape.addEventListener('click', () => rotateDevice('landscape', 'Landscape'));
+}
 
 function getImageToDeviceCoords(clientX, clientY) {
   // Map pointer position in the displayed <img> to device pixel coordinates.
@@ -724,9 +1138,18 @@ screenImg.addEventListener('pointerup', (ev) => {
 window.addEventListener('beforeunload', () => {
   stopScreenStream();
   stopLog.click();
+  if (buildLogWs) {
+    buildLogWs.close();
+    buildLogWs = null;
+  }
 });
 
 renderProfiles(loadProfiles());
+fetchProjectConfig();
+refreshArtifactsList();
+openBuildLogStream();
+refreshBuildStatus();
+ensureBuildStatusPolling();
 refreshAll();
 
 // Keep the target list current without manual refresh.

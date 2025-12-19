@@ -67,6 +67,13 @@
             </div>
           </details>
 
+          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
+            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Running emulators</summary>
+            <div id="runningDevices" class="px-3 pb-3 space-y-2 text-xs text-slate-400">
+              <div class="text-slate-500">No running emulators detected.</div>
+            </div>
+          </details>
+
           <details class="mt-3 rounded-xl border border-border bg-slate-950/30">
             <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">App profiles</summary>
             <div class="px-3 pb-3 space-y-2">
@@ -87,6 +94,55 @@
               <div>
                 <label class="block text-xs text-slate-400">Import (JSON)</label>
                 <input id="profileImport" type="file" accept="application/json" class="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700" />
+              </div>
+            </div>
+          </details>
+
+          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
+            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">App project</summary>
+            <div class="px-3 pb-3 space-y-2">
+              <label class="block text-xs text-slate-400">Project root</label>
+              <input id="projectRootInput" placeholder="/home/you/BreathingApp" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+
+              <label class="block text-xs text-slate-400">Build command</label>
+              <input id="projectBuildCommand" placeholder="npm run android -- --variant=debug" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+
+              <label class="block text-xs text-slate-400">APK directory (relative to project)</label>
+              <input id="projectApkDir" placeholder="android/app/build/outputs/apk/debug" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+
+              <label class="block text-xs text-slate-400">Package name</label>
+              <input id="projectPackageName" placeholder="com.example.app" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+
+              <label class="flex items-center gap-2 text-xs text-slate-300">
+                <input id="projectAutoLaunch" type="checkbox" class="accent-cyan-500" checked />
+                Auto launch after install
+              </label>
+
+              <button id="projectSave" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">Save project</button>
+            </div>
+          </details>
+
+          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
+            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Build &amp; install</summary>
+            <div class="px-3 pb-3 space-y-3">
+              <div class="flex items-center justify-between text-xs text-slate-300">
+                <span>Status</span>
+                <span id="buildStatus" class="text-slate-100 font-semibold">Idle</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <button id="buildRun" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">Build only</button>
+                <button id="buildInstall" class="px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold">Build &amp; install</button>
+              </div>
+
+              <button id="installLatest" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">Install latest APK</button>
+              <button id="refreshArtifacts" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Refresh artifacts</button>
+
+              <div>
+                <div class="text-xs text-slate-400 mb-2">Available APKs</div>
+                <div id="artifactList" class="space-y-2 text-xs text-slate-300">
+                  <div class="text-slate-500">No builds detected.</div>
+                </div>
               </div>
             </div>
           </details>
@@ -209,7 +265,7 @@
               <div class="flex items-center gap-2">
                 <label class="text-xs text-slate-300 flex items-center gap-2">
                   <span class="text-slate-400">Interval</span>
-                  <input id="intervalMs" type="number" value="250" min="100" max="2000" class="w-20 bg-slate-900 border border-border rounded-md px-2 py-1 text-xs" />
+                  <input id="intervalMs" type="number" value="180" min="80" max="2000" class="w-20 bg-slate-900 border border-border rounded-md px-2 py-1 text-xs" />
                   <span class="text-slate-400">ms</span>
                 </label>
                 <button id="startStream" class="px-3 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold">Start</button>
@@ -217,11 +273,77 @@
               </div>
             </div>
 
-            <div class="flex-1 relative overflow-hidden">
-              <div id="canvasHint" class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm p-6 text-center">
-                Start the stream to render the device screen here. Click to tap. Click-drag to swipe.
+            <div class="flex-1 flex items-center justify-center gap-6 p-6">
+              <div class="relative w-full max-w-[420px] aspect-[9/19.5] rounded-[32px] border border-slate-800 bg-black overflow-hidden shadow-[0_10px_50px_rgba(0,0,0,0.45)]">
+                <div
+                  id="canvasHint"
+                  class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm p-6 text-center"
+                >
+                  Start the stream to render the device screen here. Click to tap. Click-drag to swipe.
+                </div>
+                <img
+                  id="screen"
+                  class="absolute inset-0 w-full h-full object-contain select-none"
+                  draggable="false"
+                />
               </div>
-              <img id="screen" class="w-full h-full object-contain select-none" draggable="false" />
+              <div class="w-[150px] space-y-3">
+                <div class="rounded-2xl border border-border bg-slate-900/70 p-3">
+                  <div class="text-[11px] uppercase tracking-wide text-slate-400 mb-2">Navigation</div>
+                  <div class="flex flex-col gap-2">
+                    <button id="navBack" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">
+                      Back
+                    </button>
+                    <button id="navHome" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">
+                      Home
+                    </button>
+                    <button
+                      id="navOverview"
+                      class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
+                    >
+                      Overview
+                    </button>
+                  </div>
+                </div>
+                <div class="rounded-2xl border border-border bg-slate-900/70 p-3 space-y-2">
+                  <div class="text-[11px] uppercase tracking-wide text-slate-400">Volume & power</div>
+                  <div class="flex gap-2">
+                    <button
+                      id="navVolDown"
+                      class="flex-1 px-2 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
+                    >
+                      Vol −
+                    </button>
+                    <button
+                      id="navVolUp"
+                      class="flex-1 px-2 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
+                    >
+                      Vol +
+                    </button>
+                  </div>
+                  <button
+                    id="navPower"
+                    class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
+                  >
+                    Power
+                  </button>
+                </div>
+                <div class="rounded-2xl border border-border bg-slate-900/70 p-3 space-y-2">
+                  <div class="text-[11px] uppercase tracking-wide text-slate-400">Orientation</div>
+                  <button
+                    id="controlRotatePortrait"
+                    class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
+                  >
+                    Portrait
+                  </button>
+                  <button
+                    id="controlRotateLandscape"
+                    class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
+                  >
+                    Landscape
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div class="h-10 px-3 border-t border-border bg-panel flex items-center justify-between">
@@ -232,21 +354,34 @@
         </div>
 
         <!-- Right panel -->
-        <div class="border-l border-border bg-panel2 p-3 overflow-auto">
-          <div class="flex items-center justify-between">
-            <div class="text-xs font-semibold text-slate-300">Logcat</div>
-            <div class="flex gap-2">
-              <button id="startLog" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Start</button>
-              <button id="stopLog" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Stop</button>
+        <div class="border-l border-border bg-panel2 p-3 overflow-auto space-y-4">
+          <div class="rounded-xl border border-border bg-slate-950/30 p-3">
+            <div class="flex items-center justify-between">
+              <div class="text-xs font-semibold text-slate-300">Build log</div>
+              <div class="flex gap-2">
+                <button id="buildLogFollow" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Follow on</button>
+                <button id="buildLogClear" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Clear</button>
+              </div>
             </div>
+            <pre id="buildLog" class="mt-2 h-52 whitespace-pre-wrap break-words text-xs bg-slate-950/50 border border-border rounded-lg p-3 overflow-auto"></pre>
           </div>
 
-          <div class="mt-2 flex gap-2">
-            <input id="logFilter" placeholder="Filter (substring)" class="flex-1 bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-            <button id="clearLog" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Clear</button>
-          </div>
+          <div>
+            <div class="flex items-center justify-between">
+              <div class="text-xs font-semibold text-slate-300">Logcat</div>
+              <div class="flex gap-2">
+                <button id="startLog" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Start</button>
+                <button id="stopLog" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Stop</button>
+              </div>
+            </div>
 
-          <pre id="log" class="mt-2 h-[calc(100%-5.5rem)] whitespace-pre-wrap break-words text-xs bg-slate-950/50 border border-border rounded-xl p-3 overflow-auto"></pre>
+            <div class="mt-2 flex gap-2">
+              <input id="logFilter" placeholder="Filter (substring)" class="flex-1 bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
+              <button id="clearLog" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Clear</button>
+            </div>
+
+            <pre id="log" class="mt-2 h-[calc(100%-5.5rem)] whitespace-pre-wrap break-words text-xs bg-slate-950/50 border border-border rounded-xl p-3 overflow-auto"></pre>
+          </div>
         </div>
       </div>
 

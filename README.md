@@ -217,6 +217,27 @@ It will open a browser at `http://127.0.0.1:4242`.
 - For lower latency, set Interval to ~150–250ms (CPU permitting).
 - App profiles are stored locally in your browser (localStorage). Use Export/Import to move them between machines.
 
+### Build & install straight from the console
+
+Use the **App project** + **Build & install** panels (left column) to manage your React Native project without leaving the browser:
+
+1. **Configure once**
+   - **Project root**: e.g. `/home/squigz/Documents/BreathingApp`
+   - **Build command**: something that produces an APK (recommended: `./gradlew assembleDebug`)
+   - **APK directory**: path to the generated APKs relative to the project (default: `android/app/build/outputs/apk/debug`)
+   - **Package name**: whichever app id you want auto-launched (e.g. `com.innerfire`)
+   - Toggle **Auto launch** if you want the console to start the app after every install.
+
+2. **Build**
+   - Click **Build only** for a compile, or **Build & install** to compile and automatically push the freshest APK onto the selected emulator.
+   - The **Build log** panel (right column) streams Gradle/React Native output live, with a follow toggle and a clear button.
+
+3. **Install / re-install**
+   - The console lists every APK in your output folder. Hit **Install** next to any entry or use **Install latest APK** for the newest build.
+   - After install, the console can auto-launch the configured package so you’re immediately back on the emulator canvas.
+
+This flow turns the Android Test Console into a single “interactive test bench”: start/kill emulators, build BreathingApp, install it on Android 16, and drive it via the canvas, quick controls, logcat, and condition toggles—all without reaching for the CLI.
+
 ### For Existing Apps
 
 1. Install APK on emulator:
