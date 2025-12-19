@@ -7,6 +7,7 @@ A production-grade Android development setup optimised for testing apps on your 
 ✅ **Two Emulators:**
 - **Samsung S24** - Android 14, matches your actual phone
 - **Android Latest** - Android 15, for testing cutting-edge features
+- **Samsung S24 (Android 16)** - for matching your phone when it’s on Android 16
 
 ✅ **Full Development Toolchain:**
 - Android SDK with platform tools
@@ -71,6 +72,9 @@ After setup, these commands are available system-wide:
 
 ### `android-s24`
 Start Samsung S24 emulator (Android 14)
+
+### `android-s24-16`
+Start Samsung S24 emulator (Android 16 / API 36)
 
 ### `android-latest`
 Start Android 15 emulator with latest features

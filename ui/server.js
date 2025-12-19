@@ -82,8 +82,9 @@ function listAvds() {
   if (!r.ok) return { ok: false, error: r.stderr || r.stdout || 'Failed to list AVDs' };
 
   const names = [];
-  for (const line of r.stdout.split('\n')) {
-    const m = line.match(/^Name:\s*(.+)$/);
+  const combined = [r.stdout, r.stderr].filter(Boolean).join('\n');
+  for (const line of combined.split('\n')) {
+    const m = line.match(/^\s*Name:\s*(.+)$/);
     if (m?.[1]) names.push(m[1].trim());
   }
 
@@ -501,3 +502,5 @@ wss.on('connection', (ws, url) => {
 server.listen(PORT, HOST, () => {
   console.log(`Android Dev UI running at http://${HOST}:${PORT}`);
 });
+
+

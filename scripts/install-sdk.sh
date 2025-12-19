@@ -6,6 +6,12 @@ echo "Setting up Android SDK at: $ANDROID_SDK_ROOT"
 
 mkdir -p "$ANDROID_SDK_ROOT"
 
+# Fix common cmdline-tools layout drift (sdkmanager expects cmdline-tools/latest).
+if [ -d "$ANDROID_SDK_ROOT/cmdline-tools/latest-2" ] && [ ! -d "$ANDROID_SDK_ROOT/cmdline-tools/latest" ]; then
+    echo "Fixing cmdline-tools path (latest-2 -> latest)..."
+    ln -s "$ANDROID_SDK_ROOT/cmdline-tools/latest-2" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+fi
+
 # Download Android command line tools
 if [ ! -d "$ANDROID_SDK_ROOT/cmdline-tools/latest" ]; then
     echo ""
@@ -42,17 +48,24 @@ echo ""
 yes | sdkmanager --licenses 2>/dev/null || true
 
 # Install SDK packages
-# Using both Android 34 (for S24 matching) and 35 (latest)
+# Using Android 34 (baseline), 35 (latest-ish), and 36 (Android 16)
 sdkmanager --install \
     "platform-tools" \
     "platforms;android-34" \
     "platforms;android-35" \
+    "platforms;android-36" \
     "build-tools;34.0.0" \
     "build-tools;35.0.0" \
+    "build-tools;36.0.0" \
     "system-images;android-34;google_apis_playstore;x86_64" \
     "system-images;android-35;google_apis_playstore;x86_64" \
+    "system-images;android-36;google_apis_playstore;x86_64" \
     "emulator" \
     "cmdline-tools;latest"
+
+# Fallbacks if Google Play system image isn't available for a given API level.
+sdkmanager --list_installed | grep -q "system-images;android-36;google_apis_playstore;x86_64" || \
+    sdkmanager --install "system-images;android-36;google_apis;x86_64" || true
 
 echo ""
 echo "✅ SDK packages installed"

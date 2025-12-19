@@ -77,6 +77,15 @@ emulator -avd Samsung_S24 -gpu host -skin 1080x2340 &
 EOF
 chmod +x "$HOME/.local/bin/android-s24"
 
+# Start S24 Android 16 emulator script
+cat > "$HOME/.local/bin/android-s24-16" << 'EOF'
+#!/bin/bash
+echo "Starting Samsung S24 emulator (Android 16)..."
+echo ""
+emulator -avd Samsung_S24_Android16 -gpu host -skin 1080x2340 -no-boot-anim &
+EOF
+chmod +x "$HOME/.local/bin/android-s24-16"
+
 # Start Latest Android emulator script
 cat > "$HOME/.local/bin/android-latest" << 'EOF'
 #!/bin/bash
@@ -156,7 +165,12 @@ if command -v xdg-open >/dev/null 2>&1; then
   (sleep 0.6 && xdg-open "$URL" >/dev/null 2>&1) &
 fi
 
-ANDROID_DEV_UI_HOST="$HOST" ANDROID_DEV_UI_PORT="$PORT" (cd "$UI_DIR" && npm run start)
+(
+  export ANDROID_DEV_UI_HOST="$HOST"
+  export ANDROID_DEV_UI_PORT="$PORT"
+  cd "$UI_DIR"
+  npm run start
+)
 EOF
 chmod +x "$HOME/.local/bin/android-ui"
 

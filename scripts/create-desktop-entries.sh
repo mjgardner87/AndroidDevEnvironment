@@ -35,6 +35,18 @@ Terminal=false
 Categories=Development;
 EOF
 
+# 2b. Samsung S24 Android 16 Emulator Shortcut
+cat > "$APPLICATIONS_DIR/android-s24-16.desktop" << EOF
+[Desktop Entry]
+Type=Application
+Name=Samsung S24 Emulator (Android 16)
+Comment=Start the Android 16 (Samsung S24) Emulator
+Exec=$HOME/.local/bin/android-s24-16
+Icon=smartphone
+Terminal=false
+Categories=Development;
+EOF
+
 # 3. Android Manager (Terminal)
 cat > "$APPLICATIONS_DIR/android-manager.desktop" << EOF
 [Desktop Entry]
