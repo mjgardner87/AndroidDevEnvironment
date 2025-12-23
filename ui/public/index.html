@@ -1,400 +1,626 @@
 <!doctype html>
-<html lang="en-AU">
+<html lang="en-AU" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Android Test Console</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              panel: '#0b1220',
-              panel2: '#0f1a2e',
-              border: 'rgba(148, 163, 184, 0.15)'
-            }
-          }
+    <link rel="stylesheet" href="/design-tokens.css" />
+    <style>
+      /* Base styles using design tokens */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--bg-base);
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+        font-size: var(--text-base);
+        line-height: var(--line-height-normal);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+      }
+
+      /* Layout utilities */
+      .flex { display: flex; }
+      .flex-col { flex-direction: column; }
+      .flex-1 { flex: 1; }
+      .items-center { align-items: center; }
+      .justify-between { justify-content: space-between; }
+      .justify-center { justify-content: center; }
+      .grid { display: grid; }
+      .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .overflow-hidden { overflow: hidden; }
+      .overflow-y-auto { overflow-y: auto; }
+      .overflow-auto { overflow: auto; }
+      .w-full { width: 100%; }
+      .h-full { height: 100%; }
+      .h-screen { height: 100vh; }
+      .w-screen { width: 100vw; }
+      .hidden { display: none; }
+      .relative { position: relative; }
+      .absolute { position: absolute; }
+      .fixed { position: fixed; }
+      .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+      .cursor-pointer { cursor: pointer; }
+      .select-none { user-select: none; }
+      .object-contain { object-fit: contain; }
+
+      /* Spacing utilities */
+      .gap-2 { gap: var(--space-2); }
+      .gap-3 { gap: var(--space-3); }
+      .gap-4 { gap: var(--space-4); }
+      .gap-8 { gap: var(--space-8); }
+
+      /* Animations */
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(var(--space-1));
         }
-      };
-    </script>
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .animate-fade-in {
+        animation: fadeIn var(--duration-base) var(--ease-out);
+      }
+
+      .animate-slide-up {
+        animation: slideUp var(--duration-base) var(--ease-out);
+      }
+
+      /* Component styles */
+      .command-palette {
+        backdrop-filter: blur(12px);
+      }
+
+      .quick-action {
+        transition: all var(--duration-fast) var(--ease-out);
+      }
+
+      .quick-action:hover {
+        transform: translateY(-1px);
+      }
+
+      .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        display: inline-block;
+        flex-shrink: 0;
+      }
+
+      .status-indicator.active {
+        background: var(--status-active);
+        box-shadow: 0 0 0 2px var(--status-active), 0 0 8px var(--status-active);
+      }
+
+      .status-indicator.idle {
+        background: var(--status-idle);
+      }
+
+      .status-indicator.error {
+        background: var(--status-error);
+      }
+
+      /* Button styles */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-2) var(--space-4);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-default);
+        background: var(--bg-surface-elevated);
+        color: var(--text-primary);
+        transition: all var(--duration-fast) var(--ease-out);
+        cursor: pointer;
+        outline: none;
+      }
+
+      .btn:hover {
+        background: var(--bg-surface-hover);
+        border-color: var(--border-strong);
+      }
+
+      .btn:focus-visible {
+        outline: 2px solid var(--accent-primary);
+        outline-offset: 2px;
+        box-shadow: var(--shadow-focus);
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        border-color: transparent;
+        color: var(--text-inverse);
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .btn-primary:hover {
+        background: linear-gradient(135deg, var(--accent-primary-hover), var(--accent-secondary-hover));
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+      }
+
+      /* Input styles */
+      input[type="text"],
+      input[type="number"],
+      input[type="file"],
+      select {
+        background: var(--bg-surface-elevated);
+        border: 1px solid var(--border-default);
+        color: var(--text-primary);
+        border-radius: var(--radius-lg);
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--text-sm);
+        transition: all var(--duration-fast) var(--ease-out);
+        width: 100%;
+      }
+
+      input[type="text"]:focus,
+      input[type="number"]:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--border-focus);
+        box-shadow: var(--shadow-focus);
+      }
+
+      input[type="range"] {
+        accent-color: var(--accent-primary);
+      }
+
+      input[type="checkbox"] {
+        accent-color: var(--accent-primary);
+        width: 14px;
+        height: 14px;
+      }
+
+      /* Card styles */
+      .card {
+        background: var(--bg-surface-elevated-40);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-xl);
+        padding: var(--card-padding);
+      }
+
+      /* Section styles */
+      .section-header {
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: var(--letter-spacing-wider);
+      }
+
+      .section-label {
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--text-secondary);
+      }
+
+      .section-text {
+        font-size: var(--text-xs);
+        color: var(--text-tertiary);
+      }
+
+      .section-text-disabled {
+        font-size: var(--text-xs);
+        color: var(--text-disabled);
+      }
+
+      /* Smooth transitions */
+      * {
+        transition-property: background-color, border-color, color, opacity, transform, box-shadow;
+        transition-duration: var(--duration-fast);
+        transition-timing-function: var(--ease-out);
+      }
+    </style>
   </head>
-  <body class="dark bg-slate-950 text-slate-100">
-    <div class="h-screen w-screen overflow-hidden">
-      <div class="h-12 px-4 flex items-center justify-between border-b border-border bg-panel">
-        <div class="flex items-center gap-3">
-          <div class="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600"></div>
+  <body>
+    <div class="flex flex-col h-screen w-screen overflow-hidden">
+      <!-- Top bar -->
+      <div style="height: var(--header-height); padding: 0 var(--space-6); background: var(--bg-surface); border-bottom: 1px solid var(--border-default); backdrop-filter: blur(8px);" class="flex items-center justify-between">
+        <div class="flex items-center" style="gap: var(--space-4);">
+          <div style="width: 36px; height: 36px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: var(--text-inverse); font-weight: var(--font-weight-bold); font-size: var(--text-sm);" class="flex items-center justify-center">A</div>
           <div>
-            <div class="text-sm font-semibold leading-4">Android Test Console</div>
-            <div class="text-xs text-slate-400">Emulator canvas + controls</div>
+            <div style="font-size: var(--text-sm); font-weight: var(--font-weight-semibold); line-height: var(--line-height-tight);">Android Test Console</div>
+            <div style="font-size: var(--text-xs); color: var(--text-tertiary); line-height: var(--line-height-tight);">Emulator testing cockpit</div>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button id="refresh" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Refresh</button>
-          <a class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs" href="/api/health" target="_blank" rel="noreferrer">Health</a>
+        <div class="flex items-center gap-3">
+          <button id="cmdPalette" class="tooltip btn" data-tooltip="Open command palette (⌘K)" style="font-size: var(--text-xs); display: flex; align-items: center; gap: var(--space-2);">
+            <span>⌘K</span>
+            <span style="color: var(--text-tertiary);">Quick actions</span>
+          </button>
+          <button id="refresh" class="tooltip btn" data-tooltip="Refresh device list" style="font-size: var(--text-xs);">Refresh</button>
+          <button id="themeToggle" class="tooltip btn" data-tooltip="Toggle light/dark theme" style="font-size: var(--text-xs);">🌓</button>
         </div>
       </div>
 
-      <div class="grid grid-cols-[320px_1fr_360px] h-[calc(100vh-3rem)]">
-        <!-- Left panel -->
-        <div class="border-r border-border bg-panel2 p-3 overflow-auto">
-          <details open class="rounded-xl border border-border bg-slate-950/30">
-            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Target</summary>
-            <div class="px-3 pb-3 space-y-2">
-              <label class="block text-xs text-slate-400">Device (adb serial)</label>
-              <div class="flex gap-2">
-                <select id="deviceSelect" class="flex-1 bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
-                <button id="pickRunningEmulator" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Pick</button>
-              </div>
-              <div id="deviceMeta" class="text-xs text-slate-400"></div>
-            </div>
-          </details>
+      <div class="flex-1 grid" style="grid-template-columns: var(--sidebar-width) 1fr var(--panel-width); overflow: hidden;">
+        <!-- Left sidebar -->
+        <div style="border-right: 1px solid var(--border-default); background: var(--bg-surface); overflow-y: auto;">
+          <div style="padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4);">
+            <!-- Quick start section -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+              <div class="section-header">Quick Start</div>
 
-          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
-            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Emulators</summary>
-            <div class="px-3 pb-3 space-y-2">
-              <label class="block text-xs text-slate-400">AVD</label>
-              <select id="avdSelect" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
-              <div class="flex gap-2">
-                <button id="startEmu" class="flex-1 px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-sm font-semibold">Start</button>
-                <button id="killEmu" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Kill</button>
-              </div>
-              <div class="flex gap-3">
-                <label class="flex items-center gap-2 text-xs text-slate-300"><input id="coldBoot" type="checkbox" class="accent-cyan-500" /> Cold</label>
-                <label class="flex items-center gap-2 text-xs text-slate-300"><input id="wipeData" type="checkbox" class="accent-cyan-500" /> Wipe</label>
-              </div>
-            </div>
-          </details>
-
-          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
-            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Running emulators</summary>
-            <div id="runningDevices" class="px-3 pb-3 space-y-2 text-xs text-slate-400">
-              <div class="text-slate-500">No running emulators detected.</div>
-            </div>
-          </details>
-
-          <details class="mt-3 rounded-xl border border-border bg-slate-950/30">
-            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">App profiles</summary>
-            <div class="px-3 pb-3 space-y-2">
-              <label class="block text-xs text-slate-400">Profile</label>
-              <select id="profileSelect" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm"></select>
-
-              <label class="block text-xs text-slate-400">Profile name</label>
-              <input id="profileName" placeholder="BreathingApp (debug)" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-
-              <div class="grid grid-cols-2 gap-2">
-                <button id="profileSave" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Save</button>
-                <button id="profileNew" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">New</button>
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <button id="profileDelete" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Delete</button>
-                <button id="profileExport" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Export</button>
-              </div>
-              <div>
-                <label class="block text-xs text-slate-400">Import (JSON)</label>
-                <input id="profileImport" type="file" accept="application/json" class="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700" />
-              </div>
-            </div>
-          </details>
-
-          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
-            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">App project</summary>
-            <div class="px-3 pb-3 space-y-2">
-              <label class="block text-xs text-slate-400">Project root</label>
-              <input id="projectRootInput" placeholder="/home/you/BreathingApp" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-
-              <label class="block text-xs text-slate-400">Build command</label>
-              <input id="projectBuildCommand" placeholder="npm run android -- --variant=debug" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-
-              <label class="block text-xs text-slate-400">APK directory (relative to project)</label>
-              <input id="projectApkDir" placeholder="android/app/build/outputs/apk/debug" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-
-              <label class="block text-xs text-slate-400">Package name</label>
-              <input id="projectPackageName" placeholder="com.example.app" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-
-              <label class="flex items-center gap-2 text-xs text-slate-300">
-                <input id="projectAutoLaunch" type="checkbox" class="accent-cyan-500" checked />
-                Auto launch after install
-              </label>
-
-              <button id="projectSave" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">Save project</button>
-            </div>
-          </details>
-
-          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
-            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Build &amp; install</summary>
-            <div class="px-3 pb-3 space-y-3">
-              <div class="flex items-center justify-between text-xs text-slate-300">
-                <span>Status</span>
-                <span id="buildStatus" class="text-slate-100 font-semibold">Idle</span>
+              <!-- Device selector -->
+              <div class="card" style="display: flex; flex-direction: column; gap: var(--space-3);">
+                <div class="flex items-center justify-between">
+                  <label class="section-label">Device</label>
+                  <span id="deviceStatus" class="status-indicator idle"></span>
+                </div>
+                <select id="deviceSelect"></select>
+                <div id="deviceMeta" class="section-text" style="min-height: 16px;"></div>
+                <button id="pickRunningEmulator" class="tooltip btn" data-tooltip="Automatically select the first running emulator" style="width: 100%; font-size: var(--text-xs);">
+                  Auto-select emulator
+                </button>
               </div>
 
-              <div class="grid grid-cols-2 gap-2">
-                <button id="buildRun" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">Build only</button>
-                <button id="buildInstall" class="px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold">Build &amp; install</button>
+              <!-- Emulator controls -->
+              <div class="card" style="display: flex; flex-direction: column; gap: var(--space-3);">
+                <div class="section-label">Emulator</div>
+                <select id="avdSelect"></select>
+                <div class="flex gap-2">
+                  <button id="startEmu" class="tooltip btn-primary quick-action" data-tooltip="Start the selected emulator" style="flex: 1; padding: var(--space-2-5) var(--space-4); font-size: var(--text-sm);">
+                    Start
+                  </button>
+                  <button id="killEmu" class="tooltip btn" data-tooltip="Stop the running emulator" style="padding: var(--space-2-5) var(--space-4); font-size: var(--text-sm);">
+                    Kill
+                  </button>
+                </div>
+                <div class="flex" style="gap: var(--space-4); padding-top: var(--space-1);">
+                  <label class="flex items-center gap-2 section-text cursor-pointer">
+                    <input id="coldBoot" type="checkbox" />
+                    <span>Cold boot</span>
+                  </label>
+                  <label class="flex items-center gap-2 section-text cursor-pointer">
+                    <input id="wipeData" type="checkbox" />
+                    <span>Wipe data</span>
+                  </label>
+                </div>
               </div>
 
-              <button id="installLatest" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">Install latest APK</button>
-              <button id="refreshArtifacts" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Refresh artifacts</button>
-
-              <div>
-                <div class="text-xs text-slate-400 mb-2">Available APKs</div>
-                <div id="artifactList" class="space-y-2 text-xs text-slate-300">
-                  <div class="text-slate-500">No builds detected.</div>
+              <!-- Running emulators -->
+              <div id="runningDevicesSection" class="card" style="display: flex; flex-direction: column; gap: var(--space-2);">
+                <div class="section-label">Running</div>
+                <div id="runningDevices" style="display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-xs);">
+                  <div class="section-text-disabled" style="padding: var(--space-2) 0;">No emulators running</div>
                 </div>
               </div>
             </div>
-          </details>
 
-          <details open class="mt-3 rounded-xl border border-border bg-slate-950/30">
-            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">App</summary>
-            <div class="px-3 pb-3 space-y-2">
-              <label class="block text-xs text-slate-400">APK path</label>
-              <input id="apkPath" placeholder="/home/you/app.apk" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-              <button id="installApk" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Install APK</button>
+            <!-- Build & Deploy -->
+            <div style="display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--border-default);">
+              <div class="section-header">Build & Deploy</div>
 
-              <label class="block text-xs text-slate-400">Package name</label>
-              <input id="pkgName" placeholder="com.example.app" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-              <div class="grid grid-cols-2 gap-2">
-                <button id="launchApp" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Launch</button>
-                <button id="clearApp" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Clear</button>
-              </div>
-
-              <label class="block text-xs text-slate-400">Deep link URL</label>
-              <input id="deeplinkUrl" placeholder="myapp://route/xyz" class="w-full bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-              <button id="openDeeplink" class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-sm">Open deep link</button>
-            </div>
-          </details>
-
-          <details class="mt-3 rounded-xl border border-border bg-slate-950/30">
-            <summary class="cursor-pointer select-none px-3 py-2 text-xs font-semibold text-slate-300">Conditions</summary>
-            <div class="px-3 pb-3 space-y-3">
-              <div>
-                <div class="text-xs font-semibold text-slate-300">Connectivity</div>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                  <button id="wifiOn" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Wi‑Fi on</button>
-                  <button id="wifiOff" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Wi‑Fi off</button>
-                  <button id="dataOn" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Data on</button>
-                  <button id="dataOff" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Data off</button>
+              <div class="card" style="display: flex; flex-direction: column; gap: var(--space-3);">
+                <div class="flex items-center justify-between">
+                  <span class="section-label">Build status</span>
+                  <span id="buildStatus" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold); color: var(--text-tertiary);">Idle</span>
                 </div>
-              </div>
-
-              <div>
-                <div class="text-xs font-semibold text-slate-300">Emulator network</div>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                  <select id="netSpeed" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs">
-                    <option value="full">Speed: full</option>
-                    <option value="lte">Speed: lte</option>
-                    <option value="hspa">Speed: hspa</option>
-                    <option value="umts">Speed: umts</option>
-                    <option value="edge">Speed: edge</option>
-                    <option value="gsm">Speed: gsm</option>
-                    <option value="none">Speed: none</option>
-                  </select>
-                  <select id="netDelay" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs">
-                    <option value="none">Delay: none</option>
-                    <option value="lte">Delay: lte</option>
-                    <option value="umts">Delay: umts</option>
-                    <option value="edge">Delay: edge</option>
-                    <option value="gprs">Delay: gprs</option>
-                  </select>
+                <div class="grid grid-cols-2 gap-2">
+                  <button id="buildRun" class="tooltip btn" data-tooltip="Build the project only" style="font-size: var(--text-xs);">
+                    Build
+                  </button>
+                  <button id="buildInstall" class="tooltip btn-primary quick-action" data-tooltip="Build and install on device" style="font-size: var(--text-xs);">
+                    Build & Install
+                  </button>
                 </div>
-                <button id="applyNet" class="mt-2 w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Apply network profile</button>
-              </div>
-
-              <div>
-                <div class="text-xs font-semibold text-slate-300">Location (emulator)</div>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                  <input id="geoLat" placeholder="lat" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs" />
-                  <input id="geoLon" placeholder="lon" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs" />
-                </div>
-                <button id="applyGeo" class="mt-2 w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Set location</button>
-              </div>
-
-              <div>
-                <div class="text-xs font-semibold text-slate-300">Battery</div>
-                <div class="mt-2 flex items-center gap-2">
-                  <input id="batteryLevel" type="range" min="0" max="100" value="80" class="flex-1 accent-cyan-500" />
-                  <div id="batteryLabel" class="w-12 text-right text-xs text-slate-300">80%</div>
-                </div>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                  <button id="batteryCharging" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Charging</button>
-                  <button id="batteryDischarging" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Discharging</button>
-                </div>
-                <button id="batteryReset" class="mt-2 w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Reset battery</button>
-              </div>
-
-              <div>
-                <div class="text-xs font-semibold text-slate-300">Display</div>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                  <button id="themeDark" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Dark</button>
-                  <button id="themeLight" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Light</button>
-                </div>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                  <select id="locale" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs">
-                    <option value="en-AU">Locale: en-AU</option>
-                    <option value="en-US">Locale: en-US</option>
-                    <option value="de-DE">Locale: de-DE</option>
-                    <option value="ja-JP">Locale: ja-JP</option>
-                  </select>
-                  <input id="fontScale" type="number" min="0.75" max="2" step="0.05" value="1.0" class="bg-slate-900 border border-border rounded-md px-2 py-2 text-xs" />
-                </div>
-                <button id="applyDisplay" class="mt-2 w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Apply display</button>
-              </div>
-
-              <div>
-                <div class="text-xs font-semibold text-slate-300">Device actions</div>
-                <div class="mt-2 grid grid-cols-2 gap-2">
-                  <button id="rotatePortrait" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Portrait</button>
-                  <button id="rotateLandscape" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Landscape</button>
+                <button id="installLatest" class="tooltip btn" data-tooltip="Install the latest APK" style="width: 100%; font-size: var(--text-xs);">
+                  Install latest APK
+                </button>
+                <div style="padding-top: var(--space-2); border-top: 1px solid var(--border-default);">
+                  <div class="section-text" style="margin-bottom: var(--space-2);">Available APKs</div>
+                  <div id="artifactList" style="display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-xs); max-height: 8rem; overflow-y: auto;">
+                    <div class="section-text-disabled" style="padding: var(--space-1) 0;">No builds detected</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </details>
+
+            <!-- Advanced - collapsible -->
+            <details style="display: block;">
+              <summary style="cursor: pointer; user-select: none; font-size: var(--text-xs); font-weight: var(--font-weight-semibold); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: var(--letter-spacing-wider); padding-top: var(--space-2); border-top: 1px solid var(--border-default); margin-top: var(--space-4); padding-bottom: var(--space-2);">
+                Advanced
+              </summary>
+              <div style="padding-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3);" class="animate-fade-in">
+                <!-- App profiles -->
+                <details class="card">
+                  <summary style="cursor: pointer; user-select: none; padding: var(--space-4) var(--card-padding); font-size: var(--text-xs); font-weight: var(--font-weight-medium); color: var(--text-secondary);">App profiles</summary>
+                  <div style="padding: var(--space-2) var(--card-padding) var(--card-padding); display: flex; flex-direction: column; gap: var(--space-3);">
+                    <select id="profileSelect"></select>
+                    <input id="profileName" placeholder="Profile name" />
+                    <div class="grid grid-cols-2 gap-2">
+                      <button id="profileSave" class="tooltip btn" data-tooltip="Save current profile" style="padding: var(--space-1-5) var(--space-3); font-size: var(--text-xs);">Save</button>
+                      <button id="profileNew" class="tooltip btn" data-tooltip="Create new profile" style="padding: var(--space-1-5) var(--space-3); font-size: var(--text-xs);">New</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                      <button id="profileDelete" class="tooltip btn" data-tooltip="Delete selected profile" style="padding: var(--space-1-5) var(--space-3); font-size: var(--text-xs);">Delete</button>
+                      <button id="profileExport" class="tooltip btn" data-tooltip="Export profiles to JSON" style="padding: var(--space-1-5) var(--space-3); font-size: var(--text-xs);">Export</button>
+                    </div>
+                    <input id="profileImport" type="file" accept="application/json" style="font-size: var(--text-xs); color: var(--text-secondary);" />
+                  </div>
+                </details>
+
+                <!-- Project config -->
+                <details class="card">
+                  <summary style="cursor: pointer; user-select: none; padding: var(--space-4) var(--card-padding); font-size: var(--text-xs); font-weight: var(--font-weight-medium); color: var(--text-secondary);">Project config</summary>
+                  <div style="padding: var(--space-2) var(--card-padding) var(--card-padding); display: flex; flex-direction: column; gap: var(--space-3);">
+                    <div>
+                      <label class="section-text" style="display: block; margin-bottom: var(--space-1);">Project root</label>
+                      <input id="projectRootInput" placeholder="/path/to/project" />
+                    </div>
+                    <div>
+                      <label class="section-text" style="display: block; margin-bottom: var(--space-1);">Build command</label>
+                      <input id="projectBuildCommand" placeholder="npm run android" />
+                    </div>
+                    <div>
+                      <label class="section-text" style="display: block; margin-bottom: var(--space-1);">APK directory</label>
+                      <input id="projectApkDir" placeholder="android/app/build/outputs/apk/debug" />
+                    </div>
+                    <div>
+                      <label class="section-text" style="display: block; margin-bottom: var(--space-1);">Package name</label>
+                      <input id="projectPackageName" placeholder="com.example.app" />
+                    </div>
+                    <label class="flex items-center gap-2 section-text">
+                      <input id="projectAutoLaunch" type="checkbox" checked />
+                      Auto launch after install
+                    </label>
+                    <button id="projectSave" class="tooltip btn" data-tooltip="Save project configuration" style="width: 100%; font-size: var(--text-xs);">
+                      Save project
+                    </button>
+                  </div>
+                </details>
+
+                <!-- App actions -->
+                <details class="card">
+                  <summary style="cursor: pointer; user-select: none; padding: var(--space-4) var(--card-padding); font-size: var(--text-xs); font-weight: var(--font-weight-medium); color: var(--text-secondary);">App actions</summary>
+                  <div style="padding: var(--space-2) var(--card-padding) var(--card-padding); display: flex; flex-direction: column; gap: var(--space-3);">
+                    <div>
+                      <label class="section-text" style="display: block; margin-bottom: var(--space-1);">APK path</label>
+                      <input id="apkPath" placeholder="/path/to/app.apk" />
+                      <button id="installApk" class="tooltip btn" data-tooltip="Install APK from path" style="width: 100%; margin-top: var(--space-2); font-size: var(--text-xs);">
+                        Install APK
+                      </button>
+                    </div>
+                    <div>
+                      <label class="section-text" style="display: block; margin-bottom: var(--space-1);">Package name</label>
+                      <input id="pkgName" placeholder="com.example.app" />
+                      <div class="grid grid-cols-2 gap-2" style="margin-top: var(--space-2);">
+                        <button id="launchApp" class="tooltip btn" data-tooltip="Launch app by package name" style="font-size: var(--text-xs);">Launch</button>
+                        <button id="clearApp" class="tooltip btn" data-tooltip="Clear app data" style="font-size: var(--text-xs);">Clear</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="section-text" style="display: block; margin-bottom: var(--space-1);">Deep link</label>
+                      <input id="deeplinkUrl" placeholder="myapp://route" />
+                      <button id="openDeeplink" class="tooltip btn" data-tooltip="Open deep link URL" style="width: 100%; margin-top: var(--space-2); font-size: var(--text-xs);">
+                        Open deep link
+                      </button>
+                    </div>
+                  </div>
+                </details>
+
+                <!-- Test conditions -->
+                <details class="card">
+                  <summary style="cursor: pointer; user-select: none; padding: var(--space-4) var(--card-padding); font-size: var(--text-xs); font-weight: var(--font-weight-medium); color: var(--text-secondary);">Test conditions</summary>
+                  <div style="padding: var(--space-2) var(--card-padding) var(--card-padding); display: flex; flex-direction: column; gap: var(--space-4);">
+                    <div>
+                      <div class="section-label" style="margin-bottom: var(--space-2);">Connectivity</div>
+                      <div class="grid grid-cols-2 gap-2">
+                        <button id="wifiOn" class="tooltip btn" data-tooltip="Enable Wi-Fi" style="font-size: var(--text-xs);">Wi‑Fi on</button>
+                        <button id="wifiOff" class="tooltip btn" data-tooltip="Disable Wi-Fi" style="font-size: var(--text-xs);">Wi‑Fi off</button>
+                        <button id="dataOn" class="tooltip btn" data-tooltip="Enable mobile data" style="font-size: var(--text-xs);">Data on</button>
+                        <button id="dataOff" class="tooltip btn" data-tooltip="Disable mobile data" style="font-size: var(--text-xs);">Data off</button>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="section-label" style="margin-bottom: var(--space-2);">Network</div>
+                      <div class="grid grid-cols-2 gap-2">
+                        <select id="netSpeed" style="font-size: var(--text-xs); padding: var(--space-1-5) var(--space-2);">
+                          <option value="full">Speed: full</option>
+                          <option value="lte">Speed: lte</option>
+                          <option value="hspa">Speed: hspa</option>
+                          <option value="umts">Speed: umts</option>
+                          <option value="edge">Speed: edge</option>
+                          <option value="gsm">Speed: gsm</option>
+                          <option value="none">Speed: none</option>
+                        </select>
+                        <select id="netDelay" style="font-size: var(--text-xs); padding: var(--space-1-5) var(--space-2);">
+                          <option value="none">Delay: none</option>
+                          <option value="lte">Delay: lte</option>
+                          <option value="umts">Delay: umts</option>
+                          <option value="edge">Delay: edge</option>
+                          <option value="gprs">Delay: gprs</option>
+                        </select>
+                      </div>
+                      <button id="applyNet" class="tooltip btn" data-tooltip="Apply network settings" style="width: 100%; margin-top: var(--space-2); font-size: var(--text-xs);">
+                        Apply network
+                      </button>
+                    </div>
+                    <div>
+                      <div class="section-label" style="margin-bottom: var(--space-2);">Location</div>
+                      <div class="grid grid-cols-2 gap-2">
+                        <input id="geoLat" placeholder="lat" style="font-size: var(--text-xs); padding: var(--space-1-5) var(--space-2);" />
+                        <input id="geoLon" placeholder="lon" style="font-size: var(--text-xs); padding: var(--space-1-5) var(--space-2);" />
+                      </div>
+                      <button id="applyGeo" class="tooltip btn" data-tooltip="Set device location" style="width: 100%; margin-top: var(--space-2); font-size: var(--text-xs);">
+                        Set location
+                      </button>
+                    </div>
+                    <div>
+                      <div class="section-label" style="margin-bottom: var(--space-2);">Battery</div>
+                      <div class="flex items-center gap-2">
+                        <input id="batteryLevel" type="range" min="0" max="100" value="80" style="flex: 1;" />
+                        <div id="batteryLabel" style="width: 3rem; text-align: right; font-size: var(--text-xs); color: var(--text-secondary);">80%</div>
+                      </div>
+                      <div class="grid grid-cols-2 gap-2" style="margin-top: var(--space-2);">
+                        <button id="batteryCharging" class="tooltip btn" data-tooltip="Set battery to charging" style="font-size: var(--text-xs);">Charging</button>
+                        <button id="batteryDischarging" class="tooltip btn" data-tooltip="Set battery to discharging" style="font-size: var(--text-xs);">Discharging</button>
+                      </div>
+                      <button id="batteryReset" class="tooltip btn" data-tooltip="Reset battery to default" style="width: 100%; margin-top: var(--space-2); font-size: var(--text-xs);">
+                        Reset battery
+                      </button>
+                    </div>
+                    <div>
+                      <div class="section-label" style="margin-bottom: var(--space-2);">Display</div>
+                      <div class="grid grid-cols-2 gap-2">
+                        <button id="themeDark" class="tooltip btn" data-tooltip="Set dark theme" style="font-size: var(--text-xs);">Dark</button>
+                        <button id="themeLight" class="tooltip btn" data-tooltip="Set light theme" style="font-size: var(--text-xs);">Light</button>
+                      </div>
+                      <div class="grid grid-cols-2 gap-2" style="margin-top: var(--space-2);">
+                        <select id="locale" style="font-size: var(--text-xs); padding: var(--space-1-5) var(--space-2);">
+                          <option value="en-AU">en-AU</option>
+                          <option value="en-US">en-US</option>
+                          <option value="de-DE">de-DE</option>
+                          <option value="ja-JP">ja-JP</option>
+                        </select>
+                        <input id="fontScale" type="number" min="0.75" max="2" step="0.05" value="1.0" style="font-size: var(--text-xs); padding: var(--space-1-5) var(--space-2);" />
+                      </div>
+                      <button id="applyDisplay" class="tooltip btn" data-tooltip="Apply display settings" style="width: 100%; margin-top: var(--space-2); font-size: var(--text-xs);">
+                        Apply display
+                      </button>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </details>
+          </div>
         </div>
 
         <!-- Centre canvas -->
-        <div class="bg-slate-950 p-4 overflow-hidden">
-          <div class="h-full border border-border rounded-xl bg-black/30 flex flex-col">
-            <div class="h-10 px-3 flex items-center justify-between border-b border-border bg-panel">
+        <div style="background: var(--bg-base); display: flex; flex-direction: column; overflow: hidden;">
+          <div class="flex-1" style="border: 1px solid var(--border-default); border-radius: var(--radius-2xl); margin: var(--space-4); background: var(--bg-base-40); display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow-2xl);">
+            <div style="height: 48px; padding: 0 var(--space-4); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-default); background: var(--bg-surface-50); backdrop-filter: blur(8px);">
               <div class="flex items-center gap-3">
-                <div class="text-xs font-semibold text-slate-300">Canvas</div>
-                <div id="streamStatus" class="text-xs text-slate-400">Idle</div>
+                <div style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold); color: var(--text-secondary);">Canvas</div>
+                <span id="streamStatus" style="font-size: var(--text-xs); color: var(--text-tertiary);">Idle</span>
               </div>
-              <div class="flex items-center gap-2">
-                <label class="text-xs text-slate-300 flex items-center gap-2">
-                  <span class="text-slate-400">Interval</span>
-                  <input id="intervalMs" type="number" value="180" min="80" max="2000" class="w-20 bg-slate-900 border border-border rounded-md px-2 py-1 text-xs" />
-                  <span class="text-slate-400">ms</span>
+              <div class="flex items-center gap-3">
+                <label class="flex items-center gap-2" style="font-size: var(--text-xs); color: var(--text-secondary);">
+                  <span style="color: var(--text-tertiary);">Interval</span>
+                  <input id="intervalMs" type="number" value="180" min="80" max="2000" style="width: 5rem; font-size: var(--text-xs); padding: var(--space-1) var(--space-2);" />
+                  <span style="color: var(--text-tertiary);">ms</span>
                 </label>
-                <button id="startStream" class="px-3 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold">Start</button>
-                <button id="stopStream" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Stop</button>
+                <button id="startStream" class="tooltip btn-primary quick-action" data-tooltip="Start screen stream" style="padding: var(--space-1-5) var(--space-4); font-size: var(--text-xs);">
+                  Start stream
+                </button>
+                <button id="stopStream" class="tooltip btn" data-tooltip="Stop screen stream" style="padding: var(--space-1-5) var(--space-4); font-size: var(--text-xs);">
+                  Stop
+                </button>
               </div>
             </div>
 
-            <div class="flex-1 flex items-center justify-center gap-6 p-6">
-              <div class="relative w-full max-w-[420px] aspect-[9/19.5] rounded-[32px] border border-slate-800 bg-black overflow-hidden shadow-[0_10px_50px_rgba(0,0,0,0.45)]">
-                <div
-                  id="canvasHint"
-                  class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm p-6 text-center"
-                >
-                  Start the stream to render the device screen here. Click to tap. Click-drag to swipe.
+            <div class="flex-1 flex items-center justify-center overflow-auto" style="gap: var(--space-8); padding: var(--space-8);">
+              <div class="relative" style="width: 100%; max-width: 420px; aspect-ratio: 9 / 19.5; border-radius: 32px; border: 2px solid var(--border-strong); background: var(--bg-base); overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);">
+                <div id="canvasHint" class="absolute inset-0 flex items-center justify-center" style="color: var(--text-tertiary); font-size: var(--text-sm); padding: var(--space-6); text-align: center;">
+                  Start the stream to render the device screen here.<br />
+                  <span style="font-size: var(--text-xs); color: var(--text-disabled); margin-top: var(--space-2); display: block;">Click to tap • Click-drag to swipe</span>
                 </div>
-                <img
-                  id="screen"
-                  class="absolute inset-0 w-full h-full object-contain select-none"
-                  draggable="false"
-                />
+                <img id="screen" class="absolute inset-0 w-full h-full object-contain select-none" draggable="false" />
               </div>
-              <div class="w-[150px] space-y-3">
-                <div class="rounded-2xl border border-border bg-slate-900/70 p-3">
-                  <div class="text-[11px] uppercase tracking-wide text-slate-400 mb-2">Navigation</div>
+
+              <div style="width: 160px; display: flex; flex-direction: column; gap: var(--space-3);">
+                <div class="card" style="padding: var(--space-4); backdrop-filter: blur(8px);">
+                  <div style="font-size: 11px; text-transform: uppercase; letter-spacing: var(--letter-spacing-wide); color: var(--text-tertiary); margin-bottom: var(--space-3); font-weight: var(--font-weight-semibold);">Navigation</div>
                   <div class="flex flex-col gap-2">
-                    <button id="navBack" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">
-                      Back
-                    </button>
-                    <button id="navHome" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold">
-                      Home
-                    </button>
-                    <button
-                      id="navOverview"
-                      class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
-                    >
-                      Overview
-                    </button>
+                    <button id="navBack" class="tooltip btn" data-tooltip="Navigate back" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold);">Back</button>
+                    <button id="navHome" class="tooltip btn" data-tooltip="Go to home screen" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold);">Home</button>
+                    <button id="navOverview" class="tooltip btn" data-tooltip="Show app overview" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold);">Overview</button>
                   </div>
                 </div>
-                <div class="rounded-2xl border border-border bg-slate-900/70 p-3 space-y-2">
-                  <div class="text-[11px] uppercase tracking-wide text-slate-400">Volume & power</div>
+                <div class="card" style="padding: var(--space-4); backdrop-filter: blur(8px); display: flex; flex-direction: column; gap: var(--space-2);">
+                  <div style="font-size: 11px; text-transform: uppercase; letter-spacing: var(--letter-spacing-wide); color: var(--text-tertiary); font-weight: var(--font-weight-semibold);">Volume & power</div>
                   <div class="flex gap-2">
-                    <button
-                      id="navVolDown"
-                      class="flex-1 px-2 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
-                    >
-                      Vol −
-                    </button>
-                    <button
-                      id="navVolUp"
-                      class="flex-1 px-2 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
-                    >
-                      Vol +
-                    </button>
+                    <button id="navVolDown" class="tooltip btn flex-1" data-tooltip="Volume down" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold);">Vol −</button>
+                    <button id="navVolUp" class="tooltip btn flex-1" data-tooltip="Volume up" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold);">Vol +</button>
                   </div>
-                  <button
-                    id="navPower"
-                    class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
-                  >
-                    Power
-                  </button>
+                  <button id="navPower" class="tooltip btn w-full" data-tooltip="Power button" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold);">Power</button>
                 </div>
-                <div class="rounded-2xl border border-border bg-slate-900/70 p-3 space-y-2">
-                  <div class="text-[11px] uppercase tracking-wide text-slate-400">Orientation</div>
-                  <button
-                    id="controlRotatePortrait"
-                    class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
-                  >
-                    Portrait
-                  </button>
-                  <button
-                    id="controlRotateLandscape"
-                    class="w-full px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs font-semibold"
-                  >
-                    Landscape
-                  </button>
+                <div class="card" style="padding: var(--space-4); backdrop-filter: blur(8px); display: flex; flex-direction: column; gap: var(--space-2);">
+                  <div style="font-size: 11px; text-transform: uppercase; letter-spacing: var(--letter-spacing-wide); color: var(--text-tertiary); font-weight: var(--font-weight-semibold);">Orientation</div>
+                  <button id="controlRotatePortrait" class="tooltip btn w-full" data-tooltip="Rotate to portrait" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold);">Portrait</button>
+                  <button id="controlRotateLandscape" class="tooltip btn w-full" data-tooltip="Rotate to landscape" style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold);">Landscape</button>
                 </div>
               </div>
             </div>
 
-            <div class="h-10 px-3 border-t border-border bg-panel flex items-center justify-between">
-              <div class="text-xs text-slate-400">Interaction: <span class="text-slate-200">tap</span> / <span class="text-slate-200">swipe</span></div>
-              <div class="text-xs text-slate-400">Tip: keep Interval 150–350ms for usable latency.</div>
+            <div style="height: 40px; padding: 0 var(--space-4); border-top: 1px solid var(--border-default); background: var(--bg-surface-50); display: flex; align-items: center; justify-content: space-between; font-size: var(--text-xs); color: var(--text-tertiary);">
+              <div>Interaction: <span style="color: var(--text-primary);">tap</span> / <span style="color: var(--text-primary);">swipe</span></div>
+              <div>Tip: keep interval 150–350ms for best latency</div>
             </div>
           </div>
         </div>
 
-        <!-- Right panel -->
-        <div class="border-l border-border bg-panel2 p-3 overflow-auto space-y-4">
-          <div class="rounded-xl border border-border bg-slate-950/30 p-3">
-            <div class="flex items-center justify-between">
-              <div class="text-xs font-semibold text-slate-300">Build log</div>
-              <div class="flex gap-2">
-                <button id="buildLogFollow" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Follow on</button>
-                <button id="buildLogClear" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Clear</button>
+        <!-- Right panel - Logs -->
+        <div style="border-left: 1px solid var(--border-default); background: var(--bg-surface); overflow-y: auto;">
+          <div style="padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4);">
+            <!-- Build log -->
+            <div class="card">
+              <div class="flex items-center justify-between" style="margin-bottom: var(--space-3);">
+                <div style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold); color: var(--text-secondary);">Build log</div>
+                <div class="flex gap-2">
+                  <button id="buildLogFollow" class="tooltip btn" data-tooltip="Toggle auto-scroll" style="padding: var(--space-1) var(--space-2); font-size: 11px;">Follow</button>
+                  <button id="buildLogClear" class="tooltip btn" data-tooltip="Clear build log" style="padding: var(--space-1) var(--space-2); font-size: 11px;">Clear</button>
+                </div>
               </div>
+              <pre id="buildLog" style="height: 12rem; white-space: pre-wrap; word-break: break-word; font-size: var(--text-xs); background: var(--bg-surface-elevated-50); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-3); overflow: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; color: var(--text-secondary);"></pre>
             </div>
-            <pre id="buildLog" class="mt-2 h-52 whitespace-pre-wrap break-words text-xs bg-slate-950/50 border border-border rounded-lg p-3 overflow-auto"></pre>
-          </div>
 
-          <div>
-            <div class="flex items-center justify-between">
-              <div class="text-xs font-semibold text-slate-300">Logcat</div>
-              <div class="flex gap-2">
-                <button id="startLog" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Start</button>
-                <button id="stopLog" class="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Stop</button>
+            <!-- Logcat -->
+            <div>
+              <div class="flex items-center justify-between" style="margin-bottom: var(--space-3);">
+                <div style="font-size: var(--text-xs); font-weight: var(--font-weight-semibold); color: var(--text-secondary);">Logcat</div>
+                <div class="flex gap-2">
+                  <button id="startLog" class="tooltip btn" data-tooltip="Start logcat stream" style="padding: var(--space-1) var(--space-2); font-size: 11px;">Start</button>
+                  <button id="stopLog" class="tooltip btn" data-tooltip="Stop logcat stream" style="padding: var(--space-1) var(--space-2); font-size: 11px;">Stop</button>
+                </div>
               </div>
+              <div class="flex gap-2" style="margin-bottom: var(--space-3);">
+                <input id="logFilter" placeholder="Filter logs..." style="flex: 1; font-size: var(--text-xs);" />
+                <button id="clearLog" class="tooltip btn" data-tooltip="Clear logcat" style="font-size: var(--text-xs);">Clear</button>
+              </div>
+              <pre id="log" style="height: calc(100vh - 28rem); white-space: pre-wrap; word-break: break-word; font-size: var(--text-xs); background: var(--bg-surface-elevated-50); border: 1px solid var(--border-default); border-radius: var(--radius-xl); padding: var(--space-3); overflow: auto; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; color: var(--text-secondary);"></pre>
             </div>
-
-            <div class="mt-2 flex gap-2">
-              <input id="logFilter" placeholder="Filter (substring)" class="flex-1 bg-slate-900 border border-border rounded-md px-2 py-2 text-sm" />
-              <button id="clearLog" class="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-xs">Clear</button>
-            </div>
-
-            <pre id="log" class="mt-2 h-[calc(100%-5.5rem)] whitespace-pre-wrap break-words text-xs bg-slate-950/50 border border-border rounded-xl p-3 overflow-auto"></pre>
           </div>
         </div>
       </div>
 
-      <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 hidden">
-        <div class="px-4 py-2 rounded-lg border border-border bg-slate-900 text-sm shadow-xl"></div>
+      <!-- Command palette overlay -->
+      <div id="cmdPaletteOverlay" class="fixed inset-0 hidden" style="background: var(--bg-backdrop); backdrop-filter: blur(8px); z-index: var(--z-modal-backdrop); align-items: center; justify-content: center;">
+        <div class="command-palette animate-slide-up" style="width: 100%; max-width: 42rem; margin: 0 var(--space-4); background: var(--bg-surface-elevated-70); border: 1px solid var(--border-default); border-radius: var(--radius-2xl); box-shadow: var(--shadow-2xl); overflow: hidden;">
+          <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-default);">
+            <input id="cmdPaletteInput" type="text" placeholder="Type a command or search..." style="width: 100%; background: transparent; color: var(--text-primary); font-size: var(--text-sm); outline: none;" autofocus />
+          </div>
+          <div id="cmdPaletteResults" style="max-height: 24rem; overflow-y: auto; padding: var(--space-2);">
+            <!-- Results populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast notification -->
+      <div id="toast" class="fixed hidden animate-slide-up" style="bottom: var(--space-6); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);">
+        <div style="padding: var(--space-3) var(--space-4); border-radius: var(--radius-xl); border: 1px solid var(--border-default); background: var(--bg-surface-elevated-70); backdrop-filter: blur(8px); font-size: var(--text-sm); box-shadow: var(--shadow-xl); color: var(--text-primary);"></div>
       </div>
     </div>
 
     <script src="/app.js"></script>
   </body>
 </html>
-
-
-
-
-

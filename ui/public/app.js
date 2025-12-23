@@ -99,6 +99,13 @@ const logPre = qs('log');
 const toast = qs('toast');
 const toastInner = toast.querySelector('div');
 
+// Command palette elements
+const cmdPaletteBtn = qs('cmdPalette');
+const cmdPaletteOverlay = qs('cmdPaletteOverlay');
+const cmdPaletteInput = qs('cmdPaletteInput');
+const cmdPaletteResults = qs('cmdPaletteResults');
+const deviceStatus = qs('deviceStatus');
+
 let logWs = null;
 let screenWs = null;
 let lastObjectUrl = null;
@@ -173,9 +180,13 @@ function currentPackageName() {
   return projectPackageName?.value.trim() || projectConfig?.packageName || '';
 }
 
-function showToast(msg) {
+function showToast(msg, type = 'info') {
   toastInner.textContent = msg;
   toast.classList.remove('hidden');
+  const baseStyle = 'padding: var(--space-3) var(--space-4); border-radius: var(--radius-xl); border: 1px solid var(--border-default); background: var(--bg-surface-elevated-70); backdrop-filter: blur(8px); font-size: var(--text-sm); box-shadow: var(--shadow-xl); color: var(--text-primary);';
+  const errorStyle = 'border-color: var(--colour-error); background: var(--colour-error-bg);';
+  const successStyle = 'border-color: var(--colour-success); background: var(--colour-success-bg);';
+  toastInner.style.cssText = baseStyle + (type === 'error' ? errorStyle : type === 'success' ? successStyle : '');
   window.clearTimeout(showToast._t);
   showToast._t = window.setTimeout(() => toast.classList.add('hidden'), 2200);
 }
@@ -280,20 +291,31 @@ function updateDeviceMeta(devices) {
   const d = devices.find((x) => x.serial === serial);
   if (!d) {
     deviceMeta.textContent = '';
+    if (deviceStatus) {
+      deviceStatus.className = 'status-indicator idle';
+    }
     return;
   }
   deviceMeta.textContent = d.extras ? d.extras : '';
+  if (deviceStatus) {
+    deviceStatus.className = d.state === 'device' ? 'status-indicator active' : 'status-indicator idle';
+  }
 }
 
 function updateBuildStatusLabel(statusText, extra) {
   if (!buildStatusEl) return;
   buildStatusEl.textContent = statusText ?? 'Idle';
-  buildStatusEl.classList.remove('text-cyan-400', 'text-yellow-400', 'text-red-400', 'text-slate-100');
-  if (statusText === 'running') buildStatusEl.classList.add('text-cyan-400');
-  else if (statusText === 'failed') buildStatusEl.classList.add('text-red-400');
-  else if (statusText === 'success') buildStatusEl.classList.add('text-cyan-400');
-  else if (statusText === 'cancelled') buildStatusEl.classList.add('text-yellow-400');
-  else buildStatusEl.classList.add('text-slate-100');
+  if (statusText === 'running') {
+    buildStatusEl.style.color = 'var(--accent-primary)';
+  } else if (statusText === 'failed') {
+    buildStatusEl.style.color = 'var(--colour-error)';
+  } else if (statusText === 'success') {
+    buildStatusEl.style.color = 'var(--accent-primary)';
+  } else if (statusText === 'cancelled') {
+    buildStatusEl.style.color = 'var(--colour-warning)';
+  } else {
+    buildStatusEl.style.color = 'var(--text-primary)';
+  }
   if (extra?.error && statusText === 'failed') {
     buildStatusEl.title = extra.error;
   } else {
@@ -360,7 +382,7 @@ function renderRunningDevices(devices) {
 
   if (!devices.length) {
     const empty = document.createElement('div');
-    empty.className = 'text-slate-500';
+    empty.style.cssText = 'color: var(--text-disabled); font-size: var(--text-xs);';
     empty.textContent = 'No running emulators detected.';
     runningDevicesEl.appendChild(empty);
     return;
@@ -368,23 +390,26 @@ function renderRunningDevices(devices) {
 
   for (const device of devices) {
     const card = document.createElement('div');
-    card.className = 'rounded-xl border border-border bg-slate-900/40 p-3 space-y-1';
+    card.className = 'card';
+    card.style.cssText = 'padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1);';
 
     const title = document.createElement('div');
-    title.className = 'text-xs font-semibold text-slate-200';
+    title.style.cssText = 'font-size: var(--text-xs); font-weight: var(--font-weight-semibold); color: var(--text-primary);';
     title.textContent = device.serial;
     card.appendChild(title);
 
     const meta = document.createElement('div');
-    meta.className = 'text-[11px] text-slate-400';
+    meta.style.cssText = 'font-size: 11px; color: var(--text-tertiary);';
     meta.textContent = device.extras || device.state;
     card.appendChild(meta);
 
     const actions = document.createElement('div');
-    actions.className = 'flex gap-2 pt-1';
+    actions.className = 'flex gap-2';
+    actions.style.paddingTop = 'var(--space-1)';
 
     const selectBtn = document.createElement('button');
-    selectBtn.className = 'flex-1 px-2 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-[11px]';
+    selectBtn.className = 'btn';
+    selectBtn.style.cssText = 'flex: 1; padding: var(--space-1-5) var(--space-2); font-size: 11px;';
     selectBtn.textContent = 'Select';
     selectBtn.addEventListener('click', () => {
       deviceSelect.value = device.serial;
@@ -393,7 +418,8 @@ function renderRunningDevices(devices) {
     });
 
     const killBtn = document.createElement('button');
-    killBtn.className = 'px-2 py-1.5 rounded-md bg-red-900/70 hover:bg-red-800 text-[11px]';
+    killBtn.className = 'btn';
+    killBtn.style.cssText = 'padding: var(--space-1-5) var(--space-2); font-size: 11px; background: var(--colour-error-bg); border-color: var(--colour-error); color: var(--colour-error);';
     killBtn.textContent = 'Kill';
     killBtn.addEventListener('click', async () => {
       const resp = await api(
@@ -428,7 +454,7 @@ function renderArtifactList(artifacts) {
   artifactListEl.innerHTML = '';
   if (!artifacts.length) {
     const empty = document.createElement('div');
-    empty.className = 'text-slate-500';
+    empty.style.cssText = 'color: var(--text-disabled); font-size: var(--text-xs);';
     empty.textContent = 'No builds detected.';
     artifactListEl.appendChild(empty);
     return;
@@ -436,15 +462,17 @@ function renderArtifactList(artifacts) {
 
   for (const artifact of artifacts) {
     const row = document.createElement('div');
-    row.className = 'rounded-lg border border-border bg-slate-900/40 p-2 flex items-center justify-between gap-2';
+    row.className = 'card flex items-center justify-between gap-2';
+    row.style.cssText = 'padding: var(--space-2); border-radius: var(--radius-lg);';
 
     const info = document.createElement('div');
-    info.className = 'text-[11px] text-slate-300 flex-1';
+    info.style.cssText = 'font-size: 11px; color: var(--text-secondary); flex: 1;';
     const date = artifact.mtimeMs ? new Date(artifact.mtimeMs).toLocaleString() : '';
-    info.innerHTML = `<div class="font-semibold text-slate-100">${artifact.name}</div><div class="text-slate-400">${date} · ${formatBytes(artifact.size)}</div>`;
+    info.innerHTML = `<div style="font-weight: var(--font-weight-semibold); color: var(--text-primary);">${artifact.name}</div><div style="color: var(--text-tertiary);">${date} · ${formatBytes(artifact.size)}</div>`;
 
     const installBtn = document.createElement('button');
-    installBtn.className = 'px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold';
+    installBtn.className = 'btn';
+    installBtn.style.cssText = 'padding: var(--space-1-5) var(--space-3); font-size: 11px; font-weight: var(--font-weight-semibold);';
     installBtn.textContent = 'Install';
     installBtn.addEventListener('click', () => {
       installArtifact(artifact.name, { launch: projectAutoLaunch?.checked });
@@ -1154,6 +1182,183 @@ refreshAll();
 
 // Keep the target list current without manual refresh.
 window.setInterval(refreshAll, 3000);
+
+// Command palette
+const commands = [
+  { id: 'start-emulator', label: 'Start emulator', keywords: ['start', 'emulator', 'avd'], action: () => startEmu.click() },
+  { id: 'kill-emulator', label: 'Kill emulator', keywords: ['kill', 'stop', 'emulator'], action: () => killEmu.click() },
+  { id: 'start-stream', label: 'Start screen stream', keywords: ['start', 'stream', 'screen', 'canvas'], action: () => startStream.click() },
+  { id: 'stop-stream', label: 'Stop screen stream', keywords: ['stop', 'stream', 'screen'], action: () => stopStream.click() },
+  { id: 'build-install', label: 'Build & install', keywords: ['build', 'install', 'deploy'], action: () => buildInstallBtn.click() },
+  { id: 'install-latest', label: 'Install latest APK', keywords: ['install', 'latest', 'apk'], action: () => installLatestBtn.click() },
+  { id: 'start-logcat', label: 'Start logcat', keywords: ['start', 'logcat', 'logs'], action: () => startLog.click() },
+  { id: 'stop-logcat', label: 'Stop logcat', keywords: ['stop', 'logcat'], action: () => stopLog.click() },
+  { id: 'refresh', label: 'Refresh devices', keywords: ['refresh', 'reload', 'devices'], action: () => refreshAll() },
+  { id: 'pick-emulator', label: 'Auto-select emulator', keywords: ['pick', 'select', 'emulator', 'auto'], action: () => pickRunningEmulator.click() },
+];
+
+let selectedCommandIndex = 0;
+
+function openCommandPalette() {
+  cmdPaletteOverlay.classList.remove('hidden');
+  cmdPaletteInput.value = '';
+  cmdPaletteInput.focus();
+  filterCommands('');
+}
+
+function closeCommandPalette() {
+  cmdPaletteOverlay.classList.add('hidden');
+  selectedCommandIndex = 0;
+}
+
+function filterCommands(query) {
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? commands.filter(cmd =>
+        cmd.label.toLowerCase().includes(q) ||
+        cmd.keywords.some(kw => kw.includes(q))
+      )
+    : commands;
+
+  selectedCommandIndex = 0;
+  renderCommandResults(filtered);
+}
+
+function renderCommandResults(results) {
+  cmdPaletteResults.innerHTML = '';
+  if (!results.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding: var(--space-3) var(--space-4); font-size: var(--text-sm); color: var(--text-tertiary); text-align: center;';
+    empty.textContent = 'No commands found';
+    cmdPaletteResults.appendChild(empty);
+    return;
+  }
+
+  // Ensure selected index is within bounds
+  selectedCommandIndex = Math.max(0, Math.min(selectedCommandIndex, results.length - 1));
+
+  results.forEach((cmd, idx) => {
+    const item = document.createElement('div');
+    const isSelected = idx === selectedCommandIndex;
+    item.style.cssText = `padding: var(--space-3) var(--space-4); cursor: pointer; transition: all var(--duration-fast) var(--ease-out); color: var(--text-primary); ${
+      isSelected
+        ? 'background: rgba(6, 182, 212, 0.2); border-left: 2px solid var(--accent-primary);'
+        : ''
+    }`;
+    item.textContent = cmd.label;
+    item.addEventListener('mouseenter', () => {
+      if (!isSelected) {
+        item.style.background = 'var(--bg-surface-hover)';
+      }
+    });
+    item.addEventListener('mouseleave', () => {
+      if (!isSelected) {
+        item.style.background = '';
+      }
+    });
+    item.addEventListener('click', () => {
+      selectedCommandIndex = idx;
+      executeCommand(cmd);
+    });
+    cmdPaletteResults.appendChild(item);
+  });
+}
+
+function executeCommand(cmd) {
+  closeCommandPalette();
+  try {
+    cmd.action();
+    showToast(`Executed: ${cmd.label}`, 'success');
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+cmdPaletteBtn?.addEventListener('click', openCommandPalette);
+cmdPaletteOverlay?.addEventListener('click', (e) => {
+  if (e.target === cmdPaletteOverlay) closeCommandPalette();
+});
+
+cmdPaletteInput?.addEventListener('input', (e) => {
+  filterCommands(e.target.value);
+});
+
+cmdPaletteInput?.addEventListener('keydown', (e) => {
+  const results = Array.from(cmdPaletteResults.children);
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedCommandIndex = Math.min(selectedCommandIndex + 1, results.length - 1);
+    renderCommandResults(
+      commands.filter(cmd =>
+        cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
+        cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
+      )
+    );
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedCommandIndex = Math.max(selectedCommandIndex - 1, 0);
+    renderCommandResults(
+      commands.filter(cmd =>
+        cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
+        cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
+      )
+    );
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const filtered = cmdPaletteInput.value
+      ? commands.filter(cmd =>
+          cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
+          cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
+        )
+      : commands;
+    if (filtered[selectedCommandIndex]) {
+      executeCommand(filtered[selectedCommandIndex]);
+    }
+  } else if (e.key === 'Escape') {
+    closeCommandPalette();
+  }
+});
+
+// Theme toggle
+const themeToggle = qs('themeToggle');
+const htmlEl = document.documentElement;
+
+function getTheme() {
+  return localStorage.getItem('android-dev-ui-theme') || 'dark';
+}
+
+function setTheme(theme) {
+  htmlEl.setAttribute('data-theme', theme);
+  localStorage.setItem('android-dev-ui-theme', theme);
+  themeToggle.textContent = theme === 'dark' ? '🌓' : '🌙';
+}
+
+// Initialize theme
+setTheme(getTheme());
+
+themeToggle?.addEventListener('click', () => {
+  const current = getTheme();
+  setTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  // Cmd+K or Ctrl+K for command palette
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    if (cmdPaletteOverlay.classList.contains('hidden')) {
+      openCommandPalette();
+    } else {
+      closeCommandPalette();
+    }
+  }
+
+  // Escape to close palette
+  if (e.key === 'Escape' && !cmdPaletteOverlay.classList.contains('hidden')) {
+    closeCommandPalette();
+  }
+});
+
 
 
 
