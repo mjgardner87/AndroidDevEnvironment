@@ -229,10 +229,15 @@
         transition-duration: var(--duration-fast);
         transition-timing-function: var(--ease-out);
       }
+
+      /* Prevent browser shortcuts when command palette is open */
+      body:has(#cmdPaletteOverlay:not(.hidden)) {
+        overflow: hidden;
+      }
     </style>
   </head>
   <body>
-    <div class="flex flex-col h-screen w-screen overflow-hidden">
+    <div class="flex flex-col h-screen w-screen overflow-hidden" tabindex="0">
       <!-- Top bar -->
       <div style="height: var(--header-height); padding: 0 var(--space-6); background: var(--bg-surface); border-bottom: 1px solid var(--border-default); backdrop-filter: blur(8px);" class="flex items-center justify-between">
         <div class="flex items-center" style="gap: var(--space-4);">
@@ -248,7 +253,7 @@
             <span style="color: var(--text-tertiary);">Quick actions</span>
           </button>
           <button id="refresh" class="tooltip btn" data-tooltip="Refresh device list" style="font-size: var(--text-xs);">Refresh</button>
-          <button id="themeToggle" class="tooltip btn" data-tooltip="Toggle light/dark theme" style="font-size: var(--text-xs);">🌓</button>
+          <button id="themeToggle" type="button" class="tooltip btn" data-tooltip="Toggle light/dark theme" style="font-size: var(--text-xs);">🌓</button>
         </div>
       </div>
 
@@ -607,7 +612,7 @@
       <div id="cmdPaletteOverlay" class="fixed inset-0 hidden" style="background: var(--bg-backdrop); backdrop-filter: blur(8px); z-index: var(--z-modal-backdrop); align-items: center; justify-content: center;">
         <div class="command-palette animate-slide-up" style="width: 100%; max-width: 42rem; margin: 0 var(--space-4); background: var(--bg-surface-elevated-70); border: 1px solid var(--border-default); border-radius: var(--radius-2xl); box-shadow: var(--shadow-2xl); overflow: hidden;">
           <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-default);">
-            <input id="cmdPaletteInput" type="text" placeholder="Type a command or search..." style="width: 100%; background: transparent; color: var(--text-primary); font-size: var(--text-sm); outline: none;" autofocus />
+            <input id="cmdPaletteInput" type="text" placeholder="Type a command or search..." style="width: 100%; background: transparent; color: var(--text-primary); font-size: var(--text-sm); outline: none;" autofocus autocomplete="off" spellcheck="false" />
           </div>
           <div id="cmdPaletteResults" style="max-height: 24rem; overflow-y: auto; padding: var(--space-2);">
             <!-- Results populated by JS -->

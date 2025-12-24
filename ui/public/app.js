@@ -11,8 +11,7 @@ const killEmu = qs('killEmu');
 const coldBoot = qs('coldBoot');
 const wipeData = qs('wipeData');
 
-const rotatePortrait = qs('rotatePortrait');
-const rotateLandscape = qs('rotateLandscape');
+// Note: rotatePortrait and rotateLandscape are handled later as controlRotatePortrait and controlRotateLandscape
 
 const profileSelect = qs('profileSelect');
 const profileName = qs('profileName');
@@ -99,11 +98,8 @@ const logPre = qs('log');
 const toast = qs('toast');
 const toastInner = toast.querySelector('div');
 
-// Command palette elements
-const cmdPaletteBtn = qs('cmdPalette');
-const cmdPaletteOverlay = qs('cmdPaletteOverlay');
-const cmdPaletteInput = qs('cmdPaletteInput');
-const cmdPaletteResults = qs('cmdPaletteResults');
+// Command palette elements - will be initialized when DOM is ready
+let cmdPaletteBtn, cmdPaletteOverlay, cmdPaletteInput, cmdPaletteResults;
 const deviceStatus = qs('deviceStatus');
 
 let logWs = null;
@@ -738,21 +734,7 @@ killEmu.addEventListener('click', async () => {
   window.setTimeout(refreshAll, 800);
 });
 
-rotatePortrait.addEventListener('click', async () => {
-  const serial = selectedSerial();
-  if (!serial) return showToast('Pick a device first');
-  const r = await api(`/api/device/rotate?serial=${encodeURIComponent(serial)}&mode=portrait`, { method: 'POST' });
-  if (!r.ok) return showToast(r.error || 'Rotate failed');
-  showToast('Portrait');
-});
-
-rotateLandscape.addEventListener('click', async () => {
-  const serial = selectedSerial();
-  if (!serial) return showToast('Pick a device first');
-  const r = await api(`/api/device/rotate?serial=${encodeURIComponent(serial)}&mode=landscape`, { method: 'POST' });
-  if (!r.ok) return showToast(r.error || 'Rotate failed');
-  showToast('Landscape');
-});
+// Rotation controls are handled later in the controlRotatePortrait and controlRotateLandscape section (lines ~1078-1083)
 
 installApk.addEventListener('click', async () => {
   const serial = selectedSerial();
@@ -1200,15 +1182,44 @@ const commands = [
 let selectedCommandIndex = 0;
 
 function openCommandPalette() {
-  cmdPaletteOverlay.classList.remove('hidden');
-  cmdPaletteInput.value = '';
-  cmdPaletteInput.focus();
+  // Always re-query elements to ensure they exist
+  const overlay = qs('cmdPaletteOverlay');
+  const input = qs('cmdPaletteInput');
+
+  if (!overlay || !input) {
+    console.error('Command palette elements not found:', { overlay: !!overlay, input: !!input });
+    return;
+  }
+
+  console.log('Opening command palette');
+  overlay.classList.remove('hidden');
+  input.value = '';
+  // Use setTimeout to ensure focus happens after overlay is visible
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 10);
   filterCommands('');
+  // Prevent body scroll when palette is open
+  document.body.style.overflow = 'hidden';
 }
 
 function closeCommandPalette() {
-  cmdPaletteOverlay.classList.add('hidden');
+  // Always re-query to ensure element exists
+  const overlay = qs('cmdPaletteOverlay');
+  if (!overlay) {
+    console.warn('Command palette overlay not found when trying to close');
+    return;
+  }
+
+  console.log('Closing command palette');
+  overlay.classList.add('hidden');
   selectedCommandIndex = 0;
+  // Restore body scroll
+  document.body.style.overflow = '';
+  // Blur input to prevent keyboard shortcuts from being captured
+  const input = qs('cmdPaletteInput');
+  if (input) input.blur();
 }
 
 function filterCommands(query) {
@@ -1274,90 +1285,209 @@ function executeCommand(cmd) {
   }
 }
 
-cmdPaletteBtn?.addEventListener('click', openCommandPalette);
-cmdPaletteOverlay?.addEventListener('click', (e) => {
-  if (e.target === cmdPaletteOverlay) closeCommandPalette();
-});
+// Command palette initialization
+function initCommandPalette() {
+  cmdPaletteBtn = qs('cmdPalette');
+  cmdPaletteOverlay = qs('cmdPaletteOverlay');
+  cmdPaletteInput = qs('cmdPaletteInput');
+  cmdPaletteResults = qs('cmdPaletteResults');
 
-cmdPaletteInput?.addEventListener('input', (e) => {
-  filterCommands(e.target.value);
-});
+  if (!cmdPaletteBtn) console.warn('cmdPalette button not found');
+  if (!cmdPaletteOverlay) console.warn('cmdPaletteOverlay not found');
+  if (!cmdPaletteInput) console.warn('cmdPaletteInput not found');
+  if (!cmdPaletteResults) console.warn('cmdPaletteResults not found');
 
-cmdPaletteInput?.addEventListener('keydown', (e) => {
-  const results = Array.from(cmdPaletteResults.children);
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    selectedCommandIndex = Math.min(selectedCommandIndex + 1, results.length - 1);
-    renderCommandResults(
-      commands.filter(cmd =>
-        cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
-        cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
-      )
-    );
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    selectedCommandIndex = Math.max(selectedCommandIndex - 1, 0);
-    renderCommandResults(
-      commands.filter(cmd =>
-        cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
-        cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
-      )
-    );
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    const filtered = cmdPaletteInput.value
-      ? commands.filter(cmd =>
-          cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
-          cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
-        )
-      : commands;
-    if (filtered[selectedCommandIndex]) {
-      executeCommand(filtered[selectedCommandIndex]);
-    }
-  } else if (e.key === 'Escape') {
-    closeCommandPalette();
-  }
-});
-
-// Theme toggle
-const themeToggle = qs('themeToggle');
-const htmlEl = document.documentElement;
-
-function getTheme() {
-  return localStorage.getItem('android-dev-ui-theme') || 'dark';
-}
-
-function setTheme(theme) {
-  htmlEl.setAttribute('data-theme', theme);
-  localStorage.setItem('android-dev-ui-theme', theme);
-  themeToggle.textContent = theme === 'dark' ? '🌓' : '🌙';
-}
-
-// Initialize theme
-setTheme(getTheme());
-
-themeToggle?.addEventListener('click', () => {
-  const current = getTheme();
-  setTheme(current === 'dark' ? 'light' : 'dark');
-});
-
-// Keyboard shortcuts
-document.addEventListener('keydown', (e) => {
-  // Cmd+K or Ctrl+K for command palette
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-    e.preventDefault();
-    if (cmdPaletteOverlay.classList.contains('hidden')) {
+  if (cmdPaletteBtn) {
+    cmdPaletteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       openCommandPalette();
-    } else {
-      closeCommandPalette();
+    });
+  }
+
+  if (cmdPaletteOverlay) {
+    cmdPaletteOverlay.addEventListener('click', (e) => {
+      if (e.target === cmdPaletteOverlay) {
+        e.preventDefault();
+        closeCommandPalette();
+      }
+    });
+  }
+
+  if (cmdPaletteInput) {
+    cmdPaletteInput.addEventListener('input', (e) => {
+      filterCommands(e.target.value);
+    });
+
+    cmdPaletteInput.addEventListener('keydown', (e) => {
+      const results = Array.from(cmdPaletteResults.children);
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedCommandIndex = Math.min(selectedCommandIndex + 1, results.length - 1);
+        renderCommandResults(
+          commands.filter(cmd =>
+            cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
+            cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
+          )
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedCommandIndex = Math.max(selectedCommandIndex - 1, 0);
+        renderCommandResults(
+          commands.filter(cmd =>
+            cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
+            cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
+          )
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const filtered = cmdPaletteInput.value
+          ? commands.filter(cmd =>
+              cmd.label.toLowerCase().includes(cmdPaletteInput.value.toLowerCase()) ||
+              cmd.keywords.some(kw => kw.includes(cmdPaletteInput.value.toLowerCase()))
+            )
+          : commands;
+        if (filtered[selectedCommandIndex]) {
+          executeCommand(filtered[selectedCommandIndex]);
+        }
+      } else if (e.key === 'Escape') {
+        closeCommandPalette();
+      }
+    });
+  }
+
+  console.log('Command palette initialized');
+}
+
+// Theme toggle - ensure DOM is ready
+function initTheme() {
+  const htmlEl = document.documentElement;
+
+  function getTheme() {
+    return localStorage.getItem('android-dev-ui-theme') || 'dark';
+  }
+
+  function setTheme(theme) {
+    if (!htmlEl) return;
+    htmlEl.setAttribute('data-theme', theme);
+    localStorage.setItem('android-dev-ui-theme', theme);
+    const themeToggle = qs('themeToggle');
+    if (themeToggle) {
+      themeToggle.textContent = theme === 'dark' ? '🌓' : '🌙';
     }
   }
 
-  // Escape to close palette
-  if (e.key === 'Escape' && !cmdPaletteOverlay.classList.contains('hidden')) {
-    closeCommandPalette();
+  // Initialize theme
+  setTheme(getTheme());
+
+  // Attach theme toggle listener
+  const themeToggle = qs('themeToggle');
+  console.log('Looking for theme toggle button:', themeToggle);
+  if (themeToggle) {
+    console.log('Theme toggle button found, attaching listener');
+    themeToggle.addEventListener('click', (e) => {
+      console.log('Theme toggle button clicked!');
+      e.preventDefault();
+      e.stopPropagation();
+      const current = getTheme();
+      const newTheme = current === 'dark' ? 'light' : 'dark';
+      console.log('Toggling theme from', current, 'to', newTheme);
+      setTheme(newTheme);
+      console.log('Theme toggled to:', newTheme);
+    });
+
+    // Also try mousedown as fallback
+    themeToggle.addEventListener('mousedown', (e) => {
+      console.log('Theme toggle mousedown event');
+      e.preventDefault();
+    });
+  } else {
+    console.error('Theme toggle button not found!');
   }
-});
+}
+
+// Theme initialization moved to initAll() function
+
+// Keyboard shortcuts - intercept Ctrl+K/Cmd+K before browser handles it
+function initKeyboardShortcuts() {
+  function handleCtrlK(e) {
+    // Check for Ctrl+K or Cmd+K - be aggressive about catching it
+    const isCtrlK = (e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || e.keyCode === 75);
+
+    if (isCtrlK) {
+      console.log('Ctrl+K detected!', { ctrlKey: e.ctrlKey, metaKey: e.metaKey, key: e.key, keyCode: e.keyCode });
+      
+      // Prevent default FIRST before any other logic
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      // Always re-query overlay element
+      const overlay = qs('cmdPaletteOverlay');
+      if (overlay) {
+        if (overlay.classList.contains('hidden')) {
+          console.log('Opening command palette via Ctrl+K');
+          openCommandPalette();
+        } else {
+          console.log('Closing command palette via Ctrl+K');
+          closeCommandPalette();
+        }
+      } else {
+        console.error('Command palette overlay not found when Ctrl+K pressed');
+      }
+      return false;
+    }
+
+    // Escape to close palette
+    if (e.key === 'Escape') {
+      const overlay = qs('cmdPaletteOverlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeCommandPalette();
+        return false;
+      }
+    }
+  }
+
+  // Try multiple event targets and phases to catch browser shortcuts
+  // Capture phase (true) runs before bubbling phase - CRITICAL for intercepting browser shortcuts
+  window.addEventListener('keydown', handleCtrlK, { capture: true, passive: false });
+  document.addEventListener('keydown', handleCtrlK, { capture: true, passive: false });
+  if (document.body) {
+    document.body.addEventListener('keydown', handleCtrlK, { capture: true, passive: false });
+  }
+
+  console.log('Keyboard shortcuts initialized with capture phase');
+}
+
+// Initialize everything when DOM is ready
+function initAll() {
+  console.log('=== Initializing Android Dev UI ===');
+  console.log('Document ready state:', document.readyState);
+  console.log('Theme toggle element exists:', !!qs('themeToggle'));
+  console.log('Command palette button exists:', !!qs('cmdPalette'));
+  console.log('Command palette overlay exists:', !!qs('cmdPaletteOverlay'));
+
+  try {
+    initCommandPalette();
+    initTheme();
+    initKeyboardShortcuts();
+    console.log('=== Android Dev UI initialized successfully ===');
+  } catch (error) {
+    console.error('Error during initialization:', error);
+  }
+}
+
+// Ensure we wait for DOM
+if (document.readyState === 'loading') {
+  console.log('Waiting for DOMContentLoaded...');
+  document.addEventListener('DOMContentLoaded', initAll);
+} else {
+  console.log('DOM already loaded, initializing immediately');
+  // Use setTimeout to ensure DOM is fully ready
+  setTimeout(initAll, 0);
+}
 
 
 
